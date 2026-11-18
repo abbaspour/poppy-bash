@@ -42,7 +42,7 @@ done
 for cmd in curl jq openssl xxd python3 git; do
     command -v "${cmd}" >/dev/null || { echo >&2 "error: ${cmd} not found"; exit 3; }
 done
-for cmd in cloudflared shellcheck; do
+for cmd in cloudflared shellcheck gum; do
     command -v "${cmd}" >/dev/null || echo >&2 "note: ${cmd} not found (optional)"
 done
 

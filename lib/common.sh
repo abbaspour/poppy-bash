@@ -14,8 +14,11 @@
 POPPY_HOME="$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)"
 readonly POPPY_HOME
 
-# shellcheck disable=SC1091
-[[ -f "${POPPY_HOME}/.env" ]] && . "${POPPY_HOME}/.env"
+# POPPY_ENV_FILE points at another env file, eg. for an isolated test run; scripts it calls inherit it
+: "${POPPY_ENV_FILE:=${POPPY_HOME}/.env}"
+export POPPY_ENV_FILE
+# shellcheck disable=SC1090
+[[ -f "${POPPY_ENV_FILE}" ]] && . "${POPPY_ENV_FILE}"
 
 # --- settings (override in .env) ---
 : "${POPPY_STATE:=${POPPY_HOME}/.state}"        # User IDs, Sessions, delegated keys, tokens

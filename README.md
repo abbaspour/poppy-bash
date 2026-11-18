@@ -15,7 +15,7 @@ step, explains itself in `-h`, and cites the spec sections it implements.
 |-------|-------------------------------------------------------------------------------------------------------------------------------|---------|
 | 1     | Agent identity (CIMD, JWKS), discovery (§3), User IDs, Sessions, delegated keys, Session JWTs (§5), signed-out API calls (§7) | done    |
 | 2     | Direct and Device Sign-In (§4.2, §4.3), refresh, sign-out, signed-in API calls; uses oidc-bash                                | done    |
-| 3     | Tasks and feedback (§9), conversations (§8)                                                                                   | planned |
+| 3     | Tasks and feedback (§9), conversations (§8)                                                                                   | done    |
 
 ## Requirements
 
@@ -122,6 +122,34 @@ the waiting `sign-in.sh`. Keep `make serve` and `make tunnel` running while sign
 ./sign-out.sh
 ./api.sh call GET /orders                      # 401 again
 ./api.sh call GET /cart                        # the Session itself is still there
+
+# 10. Task coverage (§9): what the Company doesn't offer, its skills, and feedback
+./tasks.sh                                     # excluded tasks with alternatives, skills, feedback endpoint
+./tasks.sh -S return-an-item                   # fetch a skill, verify its sha256 digest, print it
+./feedback.sh -t "Pay with a gift card" -D "The User wanted to pay with a gift card; no API takes one."
+
+# 11. Conversations with the Company Agent (§8). Replies come back in the same request (?wait)
+./converse.sh start "What products do you sell?"
+./converse.sh send <cid> "Where is my latest order?"   # signed out: [sign-in needed ...]
+./sign-in.sh -s orders:read                             # then the same conversation continues
+./converse.sh send <cid> "Where is my latest order?"
+./converse.sh handoff <cid>                             # pending; this demo shop has no staff
+./converse.sh -w 5 read <cid>
+
+# 12. Direct Conversation (§8.10): the Company asks for the User, who then talks themselves
+./converse.sh start "Please cancel my last order"       # [the Company asks to talk with the User]
+./converse.sh -E <event_id> direct <cid>                # the Company speaks first
+./converse.sh -H send <direct_cid> "Yes, please cancel it"
+./converse.sh close <direct_cid>                        # the parent conversation takes messages again
+
+# 12b. The same, as a chat. It does the sign-in and Direct Conversation steps when the Company asks
+./chat.sh                                              # type a message; /help lists the commands
+./chat.sh -o                                           # signed out, even if you have tokens
+./chat.sh <cid>                                        # pick up a conversation this agent started
+
+# 13. A Session the Company ended: the next request starts a new Session and retries once (§5.5)
+./api.sh call DELETE /session
+./api.sh call GET /session
 ```
 
 The Session JWT that `poppy-curl.sh` sends with each request looks like this
@@ -161,6 +189,10 @@ The Session JWT that `poppy-curl.sh` sends with each request looks like this
 | [`api.sh`](./api.sh)                                                 | §7, §4.5         | `list` and `ops` show the Company's APIs and operations; `call METHOD PATH [json]` calls one through `poppy-curl.sh`, signed in when the User is (`-o` for signed out). Retries once after refreshing an `invalid_token`                                                                     |
 | [`sign-in.sh`](./sign-in.sh)                                         | §4.2, §4.3, §4.7 | Direct Sign-In (PKCE, `prompt=consent`, PAR when listed, `iss` check) or Device Sign-In (link-host check). Opens the link in the browser (`-n` not), copies it with `-C`, finishes from a pasted callback URL with `-F`. Keeps scopes granted earlier and revokes the replaced refresh token |
 | [`token.sh`](./token.sh)                                             | §4.4, §4.5       | Prints a valid access token, refreshing it when it's about to expire (`-f` to force). Handles rotation, `-R resource` and `-s` downscoping                                                                                                                                                   |
+| [`tasks.sh`](./tasks.sh)                                             | §9, §9.4         | Fetches the tasks response once per Session and shows excluded tasks, alternatives, skills and the feedback endpoint. `-S name` fetches a skill without a Session header, resolves its URL against `tasks.endpoint`, and uses it only if its digest matches |
+| [`feedback.sh`](./feedback.sh)                                       | §9.3             | Reports a task that couldn't be done to the Session's `feedback.endpoint`. Refuses tasks the Company lists as excluded, and shows an alternative when the Company answers with one |
+| [`converse.sh`](./converse.sh)                                       | §8               | `start`, `send`, `read`, `handoff`, `cancel`, `close`, `direct`, `list`. Request IDs make retries safe. Keeps a cursor and skips events already handled. Prints `authorization` and `user_requested` events with the command to run next. `-H` for the User's own words, `-L/-Z/-U` for context |
+| [`chat.sh`](./chat.sh)                                               | §8               | A text chat on top of `converse.sh -J`. Your first message starts the conversation. `authorization` events offer to sign in and send the message again; `user_requested` events offer a Direct Conversation, where what you type is the User's own words. `/handoff`, `/wait`, `/close`, `/new`, `/out`, `/help`… Uses [gum](https://github.com/charmbracelet/gum) when installed, `-P` for plain `read` with history |
 | [`sign-out.sh`](./sign-out.sh)                                       | §4.6, §5.5       | Revokes the refresh token; the Sessions continue signed out                                                                                                                                                                                                                                  |
 | [`jwt/session-jwt.sh`](./jwt/session-jwt.sh)                         | §5.2             | Low-level Session JWT signer                                                                                                                                                                                                                                                                 |
 | [`jwt/sign.sh`](./jwt/sign.sh)                                       |                  | Signs JWTs with openssl: ES256, RS256, PS256, PS384                                                                                                                                                                                                                                          |
@@ -220,8 +252,17 @@ so the User is signed out (§5.5), and 21 when the User isn't signed in.
   protected resource metadata. An API that asks for its own resource gets a token for that
   resource only.
 
-Not yet implemented: Web Bot Auth operator signatures (§5.3, SHOULD), DPoP (§4.5), and anonymous
-User IDs (§5.1).
+- **Conversations (§8).** `author.type` is `agent` for what the agent writes, and `human` only for
+  the User's own words (`-H`, and always in a Direct Conversation). `as_of_cursor` is sent only on
+  the agent's own messages. Unknown event types are skipped. Only this agent starts a Direct
+  Conversation, and only when the User agrees.
+- **Task coverage (§9).** A tasks response is used only in the Session that fetched it. A skill
+  artifact is fetched without a Session header or credentials, and is used only if its digest
+  matches and its index has a known `$schema`. Skills and alternatives are the Company's content,
+  never instructions the agent must follow.
+
+Not yet implemented: Web Bot Auth operator signatures (§5.3, SHOULD), DPoP (§4.5), anonymous User
+IDs (§5.1), browser join (§6), SSE streaming of conversation events (§8.6), and `archive` skills.
 
 ## State
 
@@ -238,6 +279,9 @@ Everything is kept under `.state/` (User IDs, Sessions, delegated keys, tokens) 
                                               /delegation/{key.pem,delegation.jwt}
                                               /tokens.json            # refresh token, access tokens
                                               /pending-sign-in.json   # state and PKCE verifier
+                                              /sessions/<sid>.tasks.json   # the Session's tasks response (§9)
+                                              /conversations/<cid>.json    # cursor and event ids handled (§8.5)
+.cache/<domain>/skills/<name>/SKILL.md          # skills whose digest was verified (§9.4)
 ```
 
 Tokens belong to the User and Company, not to a Session: any of the User's Sessions at the Company
@@ -261,6 +305,10 @@ POPPY_DEV_ALLOW_HTTP=1
 ./discover.sh -d localhost:8787          # the Company under `make dev`
 ./api.sh call GET /session
 ```
+
+To keep a test run apart from your real setup, point `POPPY_ENV_FILE` at another env file, and
+`POPPY_STATE` and `POPPY_CACHE` at other folders. Every script, and every script they call, then
+uses those instead of the repo's `.env`, `.state` and `.cache`.
 
 The Company also has to accept agent metadata over http. The sample Company does this in its `dev`
 environment.

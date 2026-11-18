@@ -125,7 +125,8 @@ current)
 list)
     cur=$(current_sid)
     for f in "${sessions_dir}"/*.json; do
-        [[ -e ${f} ]] || continue
+        # <sid>.tasks.json is a Session's tasks response (tasks.sh), not a Session
+        [[ -e ${f} && ${f} != *.tasks.json ]] || continue
         jq -r --arg cur "${cur}" \
             '"\(if .sid == $cur then "*" else " " end) \(.sid)  \(.created_at)  \(if .ended_at then "ended" else "active" end)\(if .agent_id then "  agent " + .agent_id else "" end)"' "${f}"
     done

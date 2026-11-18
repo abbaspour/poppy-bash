@@ -106,12 +106,17 @@ htu=$(url_htu "${url}")
 readonly htu
 
 # --- §5.2: is this URL a Session destination? ---
+# poppy.json's destinations, plus the feedback.endpoint from this Session's tasks response (§9.3)
 function is_destination() {
-    local d
+    local d tasks_file sessions current
     while read -r d; do
         [[ ${htu} == "${d}" || ${htu} == "${d%/}/"* ]] && return 0
     done < <(jq -r '.destinations[]' "${discovery}")
-    return 1
+    sessions="$(company_dir "$(jq -r .company_id "${discovery}")")"
+    current=${sid}
+    [[ -z ${current} && -s ${sessions}/current-session ]] && current=$(cat "${sessions}/current-session")
+    tasks_file="${sessions}/sessions/${current}.tasks.json"
+    [[ -n ${current} && -s ${tasks_file} ]] && [[ ${htu} == "$(jq -r '.feedback.endpoint // ""' "${tasks_file}")" ]]
 }
 
 if ! is_destination; then
