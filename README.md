@@ -16,11 +16,13 @@ step, explains itself in `-h`, and cites the spec sections it implements.
 | 1     | Agent identity (CIMD, JWKS), discovery (§3), User IDs, Sessions, delegated keys, Session JWTs (§5), signed-out API calls (§7) | done    |
 | 2     | Direct and Device Sign-In (§4.2, §4.3), refresh, sign-out, signed-in API calls; uses oidc-bash                                | done    |
 | 3     | Tasks and feedback (§9), conversations (§8)                                                                                   | done    |
+| 4     | Browser join (§6): the agent's own Chrome joins a Session, signed out or signed in                                            | done    |
 
 ## Requirements
 
 bash 4+, curl, jq, openssl, xxd, python3, git. You also need `cloudflared` to expose the agent's
-metadata and `shellcheck` for `make check`.
+metadata and `shellcheck` for `make check`. `browser-join.sh` needs Chrome or Chromium; it talks to
+it with `lib/cdp.py`, which uses only Python's standard library.
 
 Sign-in uses [oidc-bash](https://github.com/abbaspour/oidc-bash) for the OAuth requests.
 `setup.sh` finds it at `OIDC_BASH_DIR` (default `../oidc-bash`), or clones it into `vendor/`.
@@ -147,6 +149,14 @@ the waiting `sign-in.sh`. Keep `make serve` and `make tunnel` running while sign
 ./chat.sh -o                                           # signed out, even if you have tokens
 ./chat.sh <cid>                                        # pick up a conversation this agent started
 
+# 12c. Browse the Company's website in this Session (§6). The agent's own Chrome, with its own
+#      profile under .state/, joins the Session and stays open for you to browse with. The script
+#      checks that the website sees this Session, and prints who it sees.
+./browser-join.sh -g                                   # as a guest, signed out
+./sign-in.sh -s orders:read,poppy:browser-sign-in      # a signed-in join needs this scope (§6)
+./browser-join.sh                                      # signed in: the website sees the User, with the agent acting for them
+./browser-join.sh -H -v                                # headless, and show each step
+
 # 13. A Session the Company ended: the next request starts a new Session and retries once (§5.5)
 ./api.sh call DELETE /session
 ./api.sh call GET /session
@@ -193,6 +203,7 @@ The Session JWT that `poppy-curl.sh` sends with each request looks like this
 | [`feedback.sh`](./feedback.sh)                                       | §9.3             | Reports a task that couldn't be done to the Session's `feedback.endpoint`. Refuses tasks the Company lists as excluded, and shows an alternative when the Company answers with one |
 | [`converse.sh`](./converse.sh)                                       | §8               | `start`, `send`, `read`, `handoff`, `cancel`, `close`, `direct`, `list`. Request IDs make retries safe. Keeps a cursor and skips events already handled. Prints `authorization` and `user_requested` events with the command to run next. `-H` for the User's own words, `-L/-Z/-U` for context |
 | [`chat.sh`](./chat.sh)                                               | §8               | A text chat on top of `converse.sh -J`. Your first message starts the conversation. `authorization` events offer to sign in and send the message again; `user_requested` events offer a Direct Conversation, where what you type is the User's own words. `/handoff`, `/wait`, `/close`, `/new`, `/out`, `/help`… Uses [gum](https://github.com/charmbracelet/gum) when installed, `-P` for plain `read` with history |
+| [`browser-join.sh`](./browser-join.sh)                               | §6               | Joins the agent's own Chrome to a Session. The browser loads `web.browser_session_endpoint` and the script reads its one-time code (never printed), authorizes it with `poppy-curl.sh` (Session header, plus the access token unless `-g`), has the browser submit the form, and waits for the website's login to finish. Then it asks the website who is visiting and checks it sees this Session, as a guest or signed in. Drives Chrome over DevTools with `lib/cdp.py` |
 | [`sign-out.sh`](./sign-out.sh)                                       | §4.6, §5.5       | Revokes the refresh token; the Sessions continue signed out                                                                                                                                                                                                                                  |
 | [`jwt/session-jwt.sh`](./jwt/session-jwt.sh)                         | §5.2             | Low-level Session JWT signer                                                                                                                                                                                                                                                                 |
 | [`jwt/sign.sh`](./jwt/sign.sh)                                       |                  | Signs JWTs with openssl: ES256, RS256, PS256, PS384                                                                                                                                                                                                                                          |
@@ -262,7 +273,7 @@ so the User is signed out (§5.5), and 21 when the User isn't signed in.
   never instructions the agent must follow.
 
 Not yet implemented: Web Bot Auth operator signatures (§5.3, SHOULD), DPoP (§4.5), anonymous User
-IDs (§5.1), browser join (§6), SSE streaming of conversation events (§8.6), and `archive` skills.
+IDs (§5.1), SSE streaming of conversation events (§8.6), and `archive` skills.
 
 ## State
 
