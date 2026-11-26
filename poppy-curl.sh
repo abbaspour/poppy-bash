@@ -5,22 +5,22 @@
 # Date: 2026-11-17
 # License: LGPL 2.1
 #
-# poppy-curl.sh: sends one request to a Company the way §5 requires:
-#   Poppy-Session      a Session JWT signed for this method and URL (§5.2)
-#   Poppy-Version      the version pinned for the Session (§3.4)
-#   Poppy-Extensions   when the Session uses extensions (§3.4)
-#   Authorization      only with -t, signed in; the Session JWT's ath covers the token (§4.5)
+# poppy-curl.sh: sends one request to a Company the way section 5 requires:
+#   Poppy-Session      a Session JWT signed for this method and URL (section 5.2)
+#   Poppy-Version      the version pinned for the Session (section 3.4)
+#   Poppy-Extensions   when the Session uses extensions (section 3.4)
+#   Authorization      only with -t, signed in; the Session JWT's ath covers the token (section 4.5)
 # It sends the header only to the Session destinations poppy.json lists, or signed out to
-# website pages on organization.domain (§5.2), never follows redirects (§3), and explains
-# the protocol errors of §7:
+# website pages on organization.domain (section 5.2), never follows redirects (section 3), and explains
+# the protocol errors of section 7:
 #   exit 10 invalid_session      fix the cause; a new Session doesn't help
-#   exit 11 session_ended        after starting a new Session and retrying once (§5.5)
-#   exit 12 version_unsupported  after rediscovering and retrying once if the version changed (§3.4)
-#   exit 20 401 invalid_token    refresh the access token, or continue signed out (§5.5)
+#   exit 11 session_ended        after starting a new Session and retrying once (section 5.5)
+#   exit 12 version_unsupported  after rediscovering and retrying once if the version changed (section 3.4)
+#   exit 20 401 invalid_token    refresh the access token, or continue signed out (section 5.5)
 #   exit 21 401 sign-in needed   the challenge's scope says which scopes
 #   exit 22 403 insufficient_scope
 #   exit 23 403 extension_required
-#   exit 29 429 rate limited     wait Retry-After before sending it again (§5.6)
+#   exit 29 429 rate limited     wait Retry-After before sending it again (section 5.6)
 #   exit 4  any other HTTP error
 # The response body goes to stdout.
 ##########################################################################################
@@ -105,8 +105,8 @@ url_allowed "${url}" || die "refusing URL (must be HTTPS to a public host): ${ur
 htu=$(url_htu "${url}")
 readonly htu
 
-# --- §5.2: is this URL a Session destination? ---
-# poppy.json's destinations, plus the feedback.endpoint from this Session's tasks response (§9.3)
+# --- section 5.2: is this URL a Session destination? ---
+# poppy.json's destinations, plus the feedback.endpoint from this Session's tasks response (section 9.3)
 function is_destination() {
     local d tasks_file sessions current
     while read -r d; do
@@ -123,9 +123,9 @@ if ! is_destination; then
     website=$(jq -r .website "${discovery}")
     if [[ ${htu} == "${website}"* && $(url_part "${url}" path) != /.well-known/* ]]; then
         # a website page fetched without a browser: Session header, but always signed out
-        [[ -z ${token} ]] || die "website pages are always fetched signed out; drop -t (§5.2)"
+        [[ -z ${token} ]] || die "website pages are always fetched signed out; drop -t (section 5.2)"
     else
-        die "${htu} isn't a Session destination in ${domain}'s poppy.json; not sending a Session JWT there (§5.2)"
+        die "${htu} isn't a Session destination in ${domain}'s poppy.json; not sending a Session JWT there (section 5.2)"
     fi
 fi
 
@@ -209,26 +209,26 @@ function retry_in_new_session() {
 
 case ${status} in
 2??|3??)
-    [[ ${status} == 3?? ]] && echo >&2 "note: HTTP ${status} redirect not followed (§3): $(header_value location)"
+    [[ ${status} == 3?? ]] && echo >&2 "note: HTTP ${status} redirect not followed (section 3): $(header_value location)"
     exit 0 ;;
 400)
     case $(json_error) in
     invalid_session)
         echo >&2 "ERROR: invalid_session: $(jq -r '.error_description // "Session verification failed"' "${resp_body}")"
-        echo >&2 "       a new Session won't fix this; check the delegation, htu, clock and CIMD (§5.3)"
+        echo >&2 "       a new Session won't fix this; check the delegation, htu, clock and CIMD (section 5.3)"
         exit 10 ;;
     session_ended)
         sessions_end=$("${DIR}/session.sh" -d "${domain}" -u "${POPPY_USER}" end "${sid}" 2>&1 || true)
         echo >&2 "Session ${sid} has ended at the Company. ${sessions_end}"
-        retry_in_new_session || { echo >&2 "ERROR: session_ended again; stopping (§5.5)"; exit 11; } ;;
+        retry_in_new_session || { echo >&2 "ERROR: session_ended again; stopping (section 5.5)"; exit 11; } ;;
     version_unsupported)
         old=$(jq -r .version "${discovery}")
         new=$("${DIR}/discover.sh" -d "${domain}" -W -q -f .version | jq -r .)
         if [[ ${new} != "${old}" ]]; then
             echo >&2 "Company now serves version ${new} (was ${old})"
-            retry_in_new_session || { echo >&2 "ERROR: version_unsupported again; stopping (§3.4)"; exit 12; }
+            retry_in_new_session || { echo >&2 "ERROR: version_unsupported again; stopping (section 3.4)"; exit 12; }
         fi
-        echo >&2 "ERROR: version_unsupported, and poppy.json still selects ${new} (§3.4)"
+        echo >&2 "ERROR: version_unsupported, and poppy.json still selects ${new} (section 3.4)"
         exit 12 ;;
     *)
         echo >&2 "ERROR: HTTP 400 $(json_error)"
@@ -237,28 +237,28 @@ case ${status} in
 401)
     challenge=$(header_value www-authenticate)
     if [[ ${challenge} == *invalid_token* ]]; then
-        echo >&2 "ERROR: invalid_token: the access token is expired, revoked or invalid; refresh it (§7)"
+        echo >&2 "ERROR: invalid_token: the access token is expired, revoked or invalid; refresh it (section 7)"
         echo >&2 "       WWW-Authenticate: ${challenge}"
         exit 20
     else
         scope=$(sed -n 's/.*scope="\([^"]*\)".*/\1/p' <<<"${challenge}")
-        echo >&2 "SIGN-IN NEEDED: this request needs the User's account${scope:+, with scope \"${scope}\"} (§7)"
+        echo >&2 "SIGN-IN NEEDED: this request needs the User's account${scope:+, with scope \"${scope}\"} (section 7)"
         echo >&2 "       run: ${DIR}/sign-in.sh -d ${domain}${scope:+ -s ${scope// /,}}"
     fi
     echo >&2 "       WWW-Authenticate: ${challenge}"
     exit 21 ;;
 403)
     if [[ $(json_error) == extension_required ]]; then
-        echo >&2 "ERROR: extension_required: $(jq -r .extension "${resp_body}") (§3.3)"
+        echo >&2 "ERROR: extension_required: $(jq -r .extension "${resp_body}") (section 3.3)"
         exit 23
     fi
     challenge=$(header_value www-authenticate)
     scope=$(sed -n 's/.*scope="\([^"]*\)".*/\1/p' <<<"${challenge}")
-    echo >&2 "INSUFFICIENT SCOPE: needs \"${scope}\"; sign in again requesting it (§4.7)"
+    echo >&2 "INSUFFICIENT SCOPE: needs \"${scope}\"; sign in again requesting it (section 4.7)"
     echo >&2 "       run: ${DIR}/sign-in.sh -d ${domain} -s ${scope// /,}   (scopes granted earlier are kept)"
     exit 22 ;;
 429)
-    echo >&2 "RATE LIMITED: wait at least $(header_value retry-after)s before sending this again (§5.6)"
+    echo >&2 "RATE LIMITED: wait at least $(header_value retry-after)s before sending this again (section 5.6)"
     exit 29 ;;
 000)
     echo >&2 "ERROR: request failed (network)"

@@ -5,7 +5,7 @@
 # Date: 2026-11-17
 # License: LGPL 2.1
 #
-# user.sh: the User ID this agent gives the local User at one Company (§5.1), created on
+# user.sh: the User ID this agent gives the local User at one Company (section 5.1), created on
 # first use. It is random, so it is opaque, stable, different at each Company, and derived
 # from nothing personal. It is scoped by the Company identifier (issuer, or https://{domain}),
 # so every domain of one Company gets the same User ID. -A also creates an Agent ID, for
@@ -69,7 +69,7 @@ dir=$(company_dir "${company_id}")
 readonly dir
 readonly user_file="${dir}/user.json"
 
-# the mapping of Users to User IDs is confidential (§5.1)
+# the mapping of Users to User IDs is confidential (section 5.1)
 umask 077
 mkdir -p "${dir}"
 

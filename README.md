@@ -13,10 +13,10 @@ step, explains itself in `-h`, and cites the spec sections it implements.
 
 | Phase | Scope                                                                                                                         | State   |
 |-------|-------------------------------------------------------------------------------------------------------------------------------|---------|
-| 1     | Agent identity (CIMD, JWKS), discovery (§3), User IDs, Sessions, delegated keys, Session JWTs (§5), signed-out API calls (§7) | done    |
-| 2     | Direct and Device Sign-In (§4.2, §4.3), refresh, sign-out, signed-in API calls; uses oidc-bash                                | done    |
-| 3     | Tasks and feedback (§9), conversations (§8)                                                                                   | done    |
-| 4     | Browser join (§6): the agent's own Chrome joins a Session, signed out or signed in                                            | done    |
+| 1     | Agent identity (CIMD, JWKS), discovery (section 3), User IDs, Sessions, delegated keys, Session JWTs (section 5), signed-out API calls (section 7) | done    |
+| 2     | Direct Sign-In (section 4.2), refresh, sign-out, signed-in API calls; uses oidc-bash                                | done    |
+| 3     | Tasks and feedback (section 9), conversations (section 8)                                                                                   | done    |
+| 4     | Browser join (section 6): the agent's own Chrome joins a Session, signed out or signed in                                            | done    |
 
 ## Requirements
 
@@ -34,7 +34,7 @@ oidc-bash needs GNU coreutils on `PATH`.
 ## Setup
 
 The Personal Agent's `client_id` is an HTTPS URL that returns its client metadata document
-(§4.1). Companies fetch it, and the `jwks_uri` it names, to verify the agent's signatures. So
+(section 4.1). Companies fetch it, and the `jwks_uri` it names, to verify the agent's signatures. So
 `web/public/` has to be reachable from the internet. This repo uses a Cloudflare tunnel for that.
 
 1. Create a tunnel: Cloudflare dashboard > Networking > Tunnels > Create tunnel, with a public
@@ -55,7 +55,7 @@ The Personal Agent's `client_id` is an HTTPS URL that returns its client metadat
 
 The agent has two long-lived keys, and both are published in `jwks.json`:
 
-- `agent-ec-private.pem` (P-256) signs delegations (§5.2). With `CLIENT_ASSERTION_ALG=ES256`, it
+- `agent-ec-private.pem` (P-256) signs delegations (section 5.2). With `CLIENT_ASSERTION_ALG=ES256`, it
   also signs client assertions.
 - `agent-rsa-private.pem` signs client assertions with `PS256` or `RS256`. Poppy requires
   Companies to accept ES256 and PS384, so the default `CLIENT_ASSERTION_ALG=ES256` works with any
@@ -64,11 +64,10 @@ The agent has two long-lived keys, and both are published in `jwks.json`:
 
 ### Registering with a Company's issuer
 
-Companies decide which Personal Agents they accept (§4.1). An issuer that supports CIMD fetches
+Companies decide which Personal Agents they accept (section 4.1). An issuer that supports CIMD fetches
 `cimd.json` when the agent first signs in. With Auth0, either turn on Dynamic CIMD Registration,
 or import the agent once under Applications > Create Application > Import from URL. Auth0 treats
 CIMD clients as third-party applications, so the client also needs a grant for the Company's API.
-To use Device Sign-In, the application also needs the Device Code grant enabled.
 
 Direct Sign-In returns the browser to `${AGENT_BASE_URL}/callback`. `web/server.sh` routes that to
 [`web/public/cgi-bin/callback.sh`](./web/public/cgi-bin/callback.sh), which hands the response to
@@ -77,17 +76,17 @@ the waiting `sign-in.sh`. Keep `make serve` and `make tunnel` running while sign
 ## Walkthrough
 
 ```bash
-# 1. Discovery (§3). Fetches poppy.json, the protected resource metadata and the issuer's
+# 1. Discovery (section 3). Fetches poppy.json, the protected resource metadata and the issuer's
 #    metadata, and runs every check. The domain becomes the default for the other scripts.
 ./discover.sh -d shop.abbaspour.net
 
-# 2. A User ID for this User at this Company (§5.1): random, stable, and different per Company
+# 2. A User ID for this User at this Company (section 5.1): random, stable, and different per Company
 ./user.sh
 
-# 3. A Session (§5). There is no request to start one: the first request with a new sid starts it
+# 3. A Session (section 5). There is no request to start one: the first request with a new sid starts it
 ./session.sh new
 
-# 4. Signed-out API calls (§7). Each request carries a fresh Session JWT.
+# 4. Signed-out API calls (section 7). Each request carries a fresh Session JWT.
 ./api.sh list
 ./api.sh ops
 ./api.sh call GET /products
@@ -100,12 +99,12 @@ the waiting `sign-in.sh`. Keep `make serve` and `make tunnel` running while sign
 ./api.sh call GET /cart
 ./session.sh list
 
-# 6. Account access needs sign-in. Signed out, the API says which scope it needs (§7)
+# 6. Account access needs sign-in. Signed out, the API says which scope it needs (section 7)
 ./api.sh call POST /cart/items '{"sku":"mug"}'
 ./api.sh call GET /orders                      # 401: SIGN-IN NEEDED ... scope "orders:read"
 
-# 7. Direct Sign-In (§4.2): opens the Company's sign-in and consent page in the browser, and
-#    waits for the redirect to ${AGENT_BASE_URL}/callback. -m device uses Device Sign-In (§4.3).
+# 7. Direct Sign-In (section 4.2): opens the Company's sign-in and consent page in the browser, and
+#    waits for the redirect to ${AGENT_BASE_URL}/callback.
 ./sign-in.sh -s orders:read,orders:write       # -C also copies the link; -n doesn't open the browser
 # -R default names the Company's resource at sign-in, for issuers that need one (see below)
 # if the redirect didn't reach web/server.sh, paste the URL the browser ended up on:
@@ -119,18 +118,18 @@ the waiting `sign-in.sh`. Keep `make serve` and `make tunnel` running while sign
 ./api.sh call GET /session                     # signed_in, the account and its scopes
 ./api.sh -o call GET /orders                   # -o: this one call signed out again
 
-# 9. Refresh (§4.4) and sign-out (§4.6). After sign-out the Session continues signed out (§5.5)
+# 9. Refresh (section 4.4) and sign-out (section 4.6). After sign-out the Session continues signed out (section 5.5)
 ./token.sh -f -v
 ./sign-out.sh
 ./api.sh call GET /orders                      # 401 again
 ./api.sh call GET /cart                        # the Session itself is still there
 
-# 10. Task coverage (§9): what the Company doesn't offer, its skills, and feedback
+# 10. Task coverage (section 9): what the Company doesn't offer, its skills, and feedback
 ./tasks.sh                                     # excluded tasks with alternatives, skills, feedback endpoint
 ./tasks.sh -S return-an-item                   # fetch a skill, verify its sha256 digest, print it
 ./feedback.sh -t "Pay with a gift card" -D "The User wanted to pay with a gift card; no API takes one."
 
-# 11. Conversations with the Company Agent (§8). Replies come back in the same request (?wait)
+# 11. Conversations with the Company Agent (section 8). Replies come back in the same request (?wait)
 ./converse.sh start "What products do you sell?"
 ./converse.sh send <cid> "Where is my latest order?"   # signed out: [sign-in needed ...]
 ./sign-in.sh -s orders:read                             # then the same conversation continues
@@ -138,7 +137,7 @@ the waiting `sign-in.sh`. Keep `make serve` and `make tunnel` running while sign
 ./converse.sh handoff <cid>                             # pending; this demo shop has no staff
 ./converse.sh -w 5 read <cid>
 
-# 12. Direct Conversation (§8.10): the Company asks for the User, who then talks themselves
+# 12. Direct Conversation (section 8.10): the Company asks for the User, who then talks themselves
 ./converse.sh start "Please cancel my last order"       # [the Company asks to talk with the User]
 ./converse.sh -E <event_id> direct <cid>                # the Company speaks first
 ./converse.sh -H send <direct_cid> "Yes, please cancel it"
@@ -149,15 +148,24 @@ the waiting `sign-in.sh`. Keep `make serve` and `make tunnel` running while sign
 ./chat.sh -o                                           # signed out, even if you have tokens
 ./chat.sh <cid>                                        # pick up a conversation this agent started
 
-# 12c. Browse the Company's website in this Session (§6). The agent's own Chrome, with its own
+# 12c. Browse the Company's website in this Session (section 6). The agent's own Chrome, with its own
 #      profile under .state/, joins the Session and stays open for you to browse with. The script
 #      checks that the website sees this Session, and prints who it sees.
 ./browser-join.sh -g                                   # as a guest, signed out
-./sign-in.sh -s orders:read,poppy:browser-sign-in      # a signed-in join needs this scope (§6)
+./sign-in.sh -s orders:read,poppy:browser-sign-in      # a signed-in join needs this scope (section 6)
 ./browser-join.sh                                      # signed in: the website sees the User, with the agent acting for them
 ./browser-join.sh -H -v                                # headless, and show each step
 
-# 13. A Session the Company ended: the next request starts a new Session and retries once (§5.5)
+# 12d. One Session at the APIs and the website (section 6). Join as a guest, then fill the cart through the
+#      API. The joined browser's /cart shows the same cart, and /orders refuses a guest. Ending the
+#      Session at the Company (section 5.5) makes the website stop acting for it on the browser's next page.
+./browser-join.sh -g                                   # a new Session is started if there is none
+./api.sh call POST /cart/items '{"sku":"mug","quantity":2}'
+#   ...open https://<domain>/cart in the agent's browser: the mug is there
+./api.sh call DELETE /session                          # the Company ends the Session
+#   ...reload: the website says the Session has ended, and treats the browser as signed out
+
+# 13. A Session the Company ended: the next request starts a new Session and retries once (section 5.5)
 ./api.sh call DELETE /session
 ./api.sh call GET /session
 ```
@@ -186,26 +194,26 @@ The Session JWT that `poppy-curl.sh` sends with each request looks like this
 | Script                                                               | Spec             | What it does                                                                                                                                                                                                                                                                                 |
 |----------------------------------------------------------------------|------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [`setup.sh`](./setup.sh)                                             |                  | Checks dependencies, creates `.env`, finds or clones oidc-bash, creates keys, JWKS and CIMD                                                                                                                                                                                                  |
-| [`keys/gen-keys.sh`](./keys/gen-keys.sh)                             | §4.1             | Creates the agent's EC and RSA keys                                                                                                                                                                                                                                                          |
-| [`keys/build-jwks.sh`](./keys/build-jwks.sh)                         | §4.1             | Writes `web/public/jwks.json`, with each `kid` set to the key's RFC 7638 thumbprint                                                                                                                                                                                                          |
-| [`web/build-cimd.sh`](./web/build-cimd.sh)                           | §4.1             | Writes `web/public/cimd.json`. Its `client_id`, `jwks_uri` and `redirect_uris` are all on `AGENT_BASE_URL`                                                                                                                                                                                   |
+| [`keys/gen-keys.sh`](./keys/gen-keys.sh)                             | section 4.1             | Creates the agent's EC and RSA keys                                                                                                                                                                                                                                                          |
+| [`keys/build-jwks.sh`](./keys/build-jwks.sh)                         | section 4.1             | Writes `web/public/jwks.json`, with each `kid` set to the key's RFC 7638 thumbprint                                                                                                                                                                                                          |
+| [`web/build-cimd.sh`](./web/build-cimd.sh)                           | section 4.1             | Writes `web/public/cimd.json`. Its `client_id`, `jwks_uri` and `redirect_uris` are all on `AGENT_BASE_URL`                                                                                                                                                                                   |
 | [`web/server.sh`](./web/server.sh)                                   |                  | Serves `web/public`, and routes `/callback` to `cgi-bin/callback.sh`                                                                                                                                                                                                                         |
-| [`web/public/cgi-bin/callback.sh`](./web/public/cgi-bin/callback.sh) | §4.2             | The Direct Sign-In `redirect_uri`: saves the authorization response for `sign-in.sh`                                                                                                                                                                                                         |
-| [`discover.sh`](./discover.sh)                                       | §3, §3.2, §3.4   | Runs discovery and its checks, chooses a version, and caches a summary in `.cache/<domain>/discovery.json`                                                                                                                                                                                   |
-| [`user.sh`](./user.sh)                                               | §5.1             | Gets or creates the User ID, and an optional Agent ID with `-A`                                                                                                                                                                                                                              |
-| [`session.sh`](./session.sh)                                         | §5, §5.5         | `new`, `current`, `list`, `use <sid>`, `end [sid]`                                                                                                                                                                                                                                           |
-| [`delegation.sh`](./delegation.sh)                                   | §5.2             | Creates the User's delegated key and its delegation, and renews them before they expire                                                                                                                                                                                                      |
-| [`poppy-curl.sh`](./poppy-curl.sh)                                   | §5.2, §5.6, §7   | Sends one request with `Poppy-Session` and `Poppy-Version` (and `Authorization` when signed in), and maps protocol errors to exit codes                                                                                                                                                      |
-| [`api.sh`](./api.sh)                                                 | §7, §4.5         | `list` and `ops` show the Company's APIs and operations; `call METHOD PATH [json]` calls one through `poppy-curl.sh`, signed in when the User is (`-o` for signed out). Retries once after refreshing an `invalid_token`                                                                     |
-| [`sign-in.sh`](./sign-in.sh)                                         | §4.2, §4.3, §4.7 | Direct Sign-In (PKCE, `prompt=consent`, PAR when listed, `iss` check) or Device Sign-In (link-host check). Opens the link in the browser (`-n` not), copies it with `-C`, finishes from a pasted callback URL with `-F`. Keeps scopes granted earlier and revokes the replaced refresh token |
-| [`token.sh`](./token.sh)                                             | §4.4, §4.5       | Prints a valid access token, refreshing it when it's about to expire (`-f` to force). Handles rotation, `-R resource` and `-s` downscoping                                                                                                                                                   |
-| [`tasks.sh`](./tasks.sh)                                             | §9, §9.4         | Fetches the tasks response once per Session and shows excluded tasks, alternatives, skills and the feedback endpoint. `-S name` fetches a skill without a Session header, resolves its URL against `tasks.endpoint`, and uses it only if its digest matches |
-| [`feedback.sh`](./feedback.sh)                                       | §9.3             | Reports a task that couldn't be done to the Session's `feedback.endpoint`. Refuses tasks the Company lists as excluded, and shows an alternative when the Company answers with one |
-| [`converse.sh`](./converse.sh)                                       | §8               | `start`, `send`, `read`, `handoff`, `cancel`, `close`, `direct`, `list`. Request IDs make retries safe. Keeps a cursor and skips events already handled. Prints `authorization` and `user_requested` events with the command to run next. `-H` for the User's own words, `-L/-Z/-U` for context |
-| [`chat.sh`](./chat.sh)                                               | §8               | A text chat on top of `converse.sh -J`. Your first message starts the conversation. `authorization` events offer to sign in and send the message again; `user_requested` events offer a Direct Conversation, where what you type is the User's own words. `/handoff`, `/wait`, `/close`, `/new`, `/out`, `/help`… Uses [gum](https://github.com/charmbracelet/gum) when installed, `-P` for plain `read` with history |
-| [`browser-join.sh`](./browser-join.sh)                               | §6               | Joins the agent's own Chrome to a Session. The browser loads `web.browser_session_endpoint` and the script reads its one-time code (never printed), authorizes it with `poppy-curl.sh` (Session header, plus the access token unless `-g`), has the browser submit the form, and waits for the website's login to finish. Then it asks the website who is visiting and checks it sees this Session, as a guest or signed in. Drives Chrome over DevTools with `lib/cdp.py` |
-| [`sign-out.sh`](./sign-out.sh)                                       | §4.6, §5.5       | Revokes the refresh token; the Sessions continue signed out                                                                                                                                                                                                                                  |
-| [`jwt/session-jwt.sh`](./jwt/session-jwt.sh)                         | §5.2             | Low-level Session JWT signer                                                                                                                                                                                                                                                                 |
+| [`web/public/cgi-bin/callback.sh`](./web/public/cgi-bin/callback.sh) | section 4.2             | The Direct Sign-In `redirect_uri`: saves the authorization response for `sign-in.sh`                                                                                                                                                                                                         |
+| [`discover.sh`](./discover.sh)                                       | section 3, section 3.2, section 3.4   | Runs discovery and its checks, chooses a version, and caches a summary in `.cache/<domain>/discovery.json`                                                                                                                                                                                   |
+| [`user.sh`](./user.sh)                                               | section 5.1             | Gets or creates the User ID, and an optional Agent ID with `-A`                                                                                                                                                                                                                              |
+| [`session.sh`](./session.sh)                                         | section 5, section 5.5         | `new`, `current`, `list`, `use <sid>`, `end [sid]`                                                                                                                                                                                                                                           |
+| [`delegation.sh`](./delegation.sh)                                   | section 5.2             | Creates the User's delegated key and its delegation, and renews them before they expire                                                                                                                                                                                                      |
+| [`poppy-curl.sh`](./poppy-curl.sh)                                   | section 5.2, section 5.6, section 7   | Sends one request with `Poppy-Session` and `Poppy-Version` (and `Authorization` when signed in), and maps protocol errors to exit codes                                                                                                                                                      |
+| [`api.sh`](./api.sh)                                                 | section 7, section 4.5         | `list` and `ops` show the Company's APIs and operations; `call METHOD PATH [json]` calls one through `poppy-curl.sh`, signed in when the User is (`-o` for signed out). Retries once after refreshing an `invalid_token`                                                                     |
+| [`sign-in.sh`](./sign-in.sh)                                         | section 4.2, section 4.7 | Direct Sign-In (PKCE, `prompt=consent`, PAR when listed, `iss` check). Opens the link in the browser (`-n` not), copies it with `-C`, finishes from a pasted callback URL with `-F`. Keeps scopes granted earlier and revokes the replaced refresh token |
+| [`token.sh`](./token.sh)                                             | section 4.4, section 4.5       | Prints a valid access token, refreshing it when it's about to expire (`-f` to force). Handles rotation, `-R resource` and `-s` downscoping                                                                                                                                                   |
+| [`tasks.sh`](./tasks.sh)                                             | section 9, section 9.4         | Fetches the tasks response once per Session and shows excluded tasks, alternatives, skills and the feedback endpoint. `-S name` fetches a skill without a Session header, resolves its URL against `tasks.endpoint`, and uses it only if its digest matches |
+| [`feedback.sh`](./feedback.sh)                                       | section 9.3             | Reports a task that couldn't be done to the Session's `feedback.endpoint`. Refuses tasks the Company lists as excluded, and shows an alternative when the Company answers with one |
+| [`converse.sh`](./converse.sh)                                       | section 8               | `start`, `send`, `read`, `handoff`, `cancel`, `close`, `direct`, `list`. Request IDs make retries safe. Keeps a cursor and skips events already handled. Prints `authorization` and `user_requested` events with the command to run next. `-H` for the User's own words, `-L/-Z/-U` for context |
+| [`chat.sh`](./chat.sh)                                               | section 8               | A text chat on top of `converse.sh -J`. Your first message starts the conversation. `authorization` events offer to sign in and send the message again; `user_requested` events offer a Direct Conversation, where what you type is the User's own words. `/handoff`, `/wait`, `/close`, `/new`, `/out`, `/help`… Uses [gum](https://github.com/charmbracelet/gum) when installed, `-P` for plain `read` with history |
+| [`browser-join.sh`](./browser-join.sh)                               | section 6               | Joins the agent's own Chrome to a Session. The browser loads `web.browser_session_endpoint` and the script reads its one-time code (never printed), authorizes it with `poppy-curl.sh` (Session header, plus the access token unless `-g`), has the browser submit the form, and waits for the website's login to finish. Then it asks the website who is visiting and checks it sees this Session, as a guest or signed in. Drives Chrome over DevTools with `lib/cdp.py` |
+| [`sign-out.sh`](./sign-out.sh)                                       | section 4.6, section 5.5       | Revokes the refresh token; the Sessions continue signed out                                                                                                                                                                                                                                  |
+| [`jwt/session-jwt.sh`](./jwt/session-jwt.sh)                         | section 5.2             | Low-level Session JWT signer                                                                                                                                                                                                                                                                 |
 | [`jwt/sign.sh`](./jwt/sign.sh)                                       |                  | Signs JWTs with openssl: ES256, RS256, PS256, PS384                                                                                                                                                                                                                                          |
 | [`jwt/jwk.sh`](./jwt/jwk.sh)                                         | RFC 7638         | Prints a key's public JWK or thumbprint                                                                                                                                                                                                                                                      |
 | [`jwt/decode.sh`](./jwt/decode.sh)                                   |                  | Decodes a JWT, and with `-D` also its delegation                                                                                                                                                                                                                                             |
@@ -226,54 +234,53 @@ The Session JWT that `poppy-curl.sh` sends with each request looks like this
 | 4    | Any other HTTP error                                    |                                                                           |
 
 `token.sh` uses the same codes where they apply: 20 when the refresh token is no longer valid,
-so the User is signed out (§5.5), and 21 when the User isn't signed in.
+so the User is signed out (section 5.5), and 21 when the User isn't signed in.
 
 ## What the agent enforces
 
-- **Discovery (§3).** It follows only HTTPS redirects, and the last URL must be exactly
+- **Discovery (section 3).** It follows only HTTPS redirects, and the last URL must be exactly
   `/.well-known/poppy.json` with no query. `organization.domain` must be the host that served the
   document. It never falls back to "no issuer" after an error. The issuer's `issuer` must match
   character for character, and its `protected_resources` must list `https://{domain}`. Every URL
   in the document must be HTTPS. Loopback and private addresses are refused.
-- **Session destinations (§5.2).** A Session JWT goes only to URLs that `poppy.json` lists: the
+- **Session destinations (section 5.2).** A Session JWT goes only to URLs that `poppy.json` lists: the
   OpenAPI `servers`, MCP and conversation endpoints, the tasks endpoint, and browser join. Website
   pages on `organization.domain` get one too, but always signed out. Discovery documents never
   do.
-- **Delegated keys (§5.2).** Each User has their own delegated key at each Company, so Companies
+- **Delegated keys (section 5.2).** Each User has their own delegated key at each Company, so Companies
   can't link a User across Companies by key or delegation. A delegation names no User or Company.
   It lasts `POPPY_DELEGATION_TTL` (at most 24h), and is renewed 2 minutes before it expires.
-- **Pinned per Session (§3.4, §5.2).** `sub`, `agent_id`, `Poppy-Version` and `Poppy-Extensions`
+- **Pinned per Session (section 3.4, section 5.2).** `sub`, `agent_id`, `Poppy-Version` and `Poppy-Extensions`
   stay the same for the whole Session.
-- **No redirects with secrets (§3).** `poppy-curl.sh` never follows a redirect.
-- **Sign-in (§4).** Every token request authenticates with a private_key_jwt client assertion
+- **No redirects with secrets (section 3).** `poppy-curl.sh` never follows a redirect.
+- **Sign-in (section 4).** Every token request authenticates with a private_key_jwt client assertion
   whose `aud` is the issuer, and lasts 5 minutes. Every sign-in names its scopes. A Direct Sign-In
   redirect is used only if its `state` matches and its `iss` is exactly the Company's issuer. The
-  authorization URL must be the issuer's `authorization_endpoint`. A Device Sign-In link is shown
-  only if its host is the issuer's or the Company's. A sign-in must return a refresh token. When
+  authorization URL must be the issuer's `authorization_endpoint`. A sign-in must return a refresh token. When
   the issuer lists `offline_access`, as Auth0 does, it's added to the request, because Auth0
   issues refresh tokens only for that scope.
-- **No `resource` at sign-in (§4.5).** By default a sign-in names no resource, so it covers
+- **No `resource` at sign-in (section 4.5).** By default a sign-in names no resource, so it covers
   every service the Company offers, and token requests name a resource only for a service that
   asks for its own. Some issuers need a resource to choose the token's audience: Auth0 does
   without a default audience. For those, `sign-in.sh -R default`, or
   `POPPY_SIGN_IN_RESOURCES=default` in `.env`, names `https://{organization.domain}`. Any named
   resources always include that one, so the default token stays available. Signing in again names
   them again. `token.sh` refuses a resource the sign-in didn't name.
-- **Tokens per service (§4.5).** Before its first signed-in call, the agent fetches each API's
+- **Tokens per service (section 4.5).** Before its first signed-in call, the agent fetches each API's
   protected resource metadata. An API that asks for its own resource gets a token for that
   resource only.
 
-- **Conversations (§8).** `author.type` is `agent` for what the agent writes, and `human` only for
+- **Conversations (section 8).** `author.type` is `agent` for what the agent writes, and `human` only for
   the User's own words (`-H`, and always in a Direct Conversation). `as_of_cursor` is sent only on
   the agent's own messages. Unknown event types are skipped. Only this agent starts a Direct
   Conversation, and only when the User agrees.
-- **Task coverage (§9).** A tasks response is used only in the Session that fetched it. A skill
+- **Task coverage (section 9).** A tasks response is used only in the Session that fetched it. A skill
   artifact is fetched without a Session header or credentials, and is used only if its digest
   matches and its index has a known `$schema`. Skills and alternatives are the Company's content,
   never instructions the agent must follow.
 
-Not yet implemented: Web Bot Auth operator signatures (§5.3, SHOULD), DPoP (§4.5), anonymous User
-IDs (§5.1), SSE streaming of conversation events (§8.6), and `archive` skills.
+Not yet implemented: Web Bot Auth operator signatures (section 5.3, SHOULD), DPoP (section 4.5), anonymous User
+IDs (section 5.1), SSE streaming of conversation events (section 8.6), and `archive` skills.
 
 ## State
 
@@ -290,15 +297,15 @@ Everything is kept under `.state/` (User IDs, Sessions, delegated keys, tokens) 
                                               /delegation/{key.pem,delegation.jwt}
                                               /tokens.json            # refresh token, access tokens
                                               /pending-sign-in.json   # state and PKCE verifier
-                                              /sessions/<sid>.tasks.json   # the Session's tasks response (§9)
-                                              /conversations/<cid>.json    # cursor and event ids handled (§8.5)
-.cache/<domain>/skills/<name>/SKILL.md          # skills whose digest was verified (§9.4)
+                                              /sessions/<sid>.tasks.json   # the Session's tasks response (section 9)
+                                              /conversations/<cid>.json    # cursor and event ids handled (section 8.5)
+.cache/<domain>/skills/<name>/SKILL.md          # skills whose digest was verified (section 9.4)
 ```
 
 Tokens belong to the User and Company, not to a Session: any of the User's Sessions at the Company
-can use them (§4.4).
+can use them (section 4.4).
 
-User IDs are scoped by the Company identifier, not the domain (§5.1). Several domains that share an
+User IDs are scoped by the Company identifier, not the domain (section 5.1). Several domains that share an
 issuer therefore share one User ID.
 
 ## Local development

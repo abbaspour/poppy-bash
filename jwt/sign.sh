@@ -6,7 +6,7 @@
 # License: LGPL 2.1
 #
 # sign.sh: signs a JWT from a header and a payload JSON with openssl. Supports ES256 (P-256,
-# raw r||s signature as RFC 7518 §3.4 requires), RS256, PS256 and PS384. Every Poppy JWT goes
+# raw r||s signature as RFC 7518 section 3.4 requires), RS256, PS256 and PS384. Every Poppy JWT goes
 # through this: delegations, Session JWTs and client assertions.
 ##########################################################################################
 

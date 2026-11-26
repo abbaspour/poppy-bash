@@ -5,7 +5,7 @@
 # Date: 2026-11-25
 # License: LGPL 2.1
 #
-# browser-join.sh: joins the agent's own browser to a Session at a Company (§6), so its
+# browser-join.sh: joins the agent's own browser to a Session at a Company (section 6), so its
 # browsing belongs to the Session whether the User is signed in or not.
 #   1. The browser loads web.browser_session_endpoint and gets a form with a one-time code,
 #      and a cookie that ties the code to this browser.
@@ -17,8 +17,8 @@
 #   4. The browser fetches the website's own description of the visitor, to check that the
 #      website sees this Session, and as a guest or as the User.
 # The code is read from the page and sent to /authorize inside this script, and never printed:
-# the code is a credential for the Session (§10.2). Only a page the agent's own browser loaded
-# from the endpoint is a source for a code (§6); the browser is Chrome, started with its own
+# the code is a credential for the Session (section 10.2). Only a page the agent's own browser loaded
+# from the endpoint is a source for a code (section 6); the browser is Chrome, started with its own
 # profile under .state/ and driven over the DevTools protocol on this machine (lib/cdp.py).
 # It stays open afterwards, joined, for the agent to browse with.
 #
@@ -56,7 +56,7 @@ USAGE: $0 [-e env] [-d domain] [-u user] [-s sid] [-g] [-P port] [-H] [-B browse
         -v             # verbose: print each step on stderr
 
 A browser already listening on the port is used as it is. It must be the agent's own browser, never
-the User's (§6).
+the User's (section 6).
 
 eg,
      $0 -d shop.example.com -g                # a guest join
@@ -110,12 +110,12 @@ readonly company_id
 
 endpoint=$(jq -r '.poppy.web.browser_session_endpoint // empty' "${discovery}")
 if [[ -z ${endpoint} ]]; then
-    echo >&2 "ERROR: ${domain}'s poppy.json lists no web.browser_session_endpoint; it offers no browser join (§6)."
+    echo >&2 "ERROR: ${domain}'s poppy.json lists no web.browser_session_endpoint; it offers no browser join (section 6)."
     echo >&2 "       Browse it as an ordinary signed-out visitor. If it was added recently: ./discover.sh -d ${domain} -W"
     exit 2
 fi
 if [[ $(jq -r '.poppy.web.disabled // false' "${discovery}") == true ]]; then
-    die "${domain} asks personal agents not to browse (web.disabled, §6)"
+    die "${domain} asks personal agents not to browse (web.disabled, section 6)"
 fi
 url_allowed "${endpoint}" || die "refusing the browser session endpoint ${endpoint}: it must be HTTPS to a public host"
 website=$(jq -r .website "${discovery}")
@@ -148,7 +148,7 @@ if [[ ${opt_guest} -eq 0 ]]; then
         exit 21
     fi
     if [[ " $(jq -r '.scope // ""' "${tokens}") " != *" poppy:browser-sign-in "* ]]; then
-        echo >&2 "INSUFFICIENT SCOPE: the sign-in doesn't include poppy:browser-sign-in (§6)"
+        echo >&2 "INSUFFICIENT SCOPE: the sign-in doesn't include poppy:browser-sign-in (section 6)"
         echo >&2 "       run: ${DIR}/sign-in.sh -d ${domain} -s poppy:browser-sign-in   (scopes granted earlier are kept)"
         exit 22
     fi
@@ -208,7 +208,7 @@ function evaluate() {
 }
 
 # a short, printable piece of what the page says, for an error message. It is the Company's
-# page, so it is data, not instructions (§10.1).
+# page, so it is data, not instructions (section 10.1).
 function page_text() {
     evaluate "(document.body ? document.body.innerText : '').replace(/\\s+/g, ' ').trim().slice(0, 300)" 2>/dev/null |
         tr -cd '[:print:]' || true
@@ -241,7 +241,7 @@ wait_for "document.readyState === 'complete' && location.origin === '${endpoint_
 code=$(evaluate "(document.querySelector('form input[name=code]') || {}).value || ''") || code=''
 # (at most 255 repetitions: macOS's regex engine rejects more)
 if [[ ! ${code} =~ ^[A-Za-z0-9_-]{16,255}$ ]]; then
-    echo >&2 "ERROR: the page at ${endpoint} has no one-time code (§6); it said: $(page_text)"
+    echo >&2 "ERROR: the page at ${endpoint} has no one-time code (section 6); it said: $(page_text)"
     exit 31
 fi
 step "got a code from the page (not shown)"

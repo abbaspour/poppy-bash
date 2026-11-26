@@ -5,7 +5,7 @@
 # Date: 2026-11-17
 # License: LGPL 2.1
 #
-# build-jwks.sh: writes the public key set served at jwks_uri (§4.1). It holds only public
+# build-jwks.sh: writes the public key set served at jwks_uri (section 4.1). It holds only public
 # keys, each with kid = its RFC 7638 thumbprint. The EC key is listed as ES256 and the RSA
 # key with CLIENT_ASSERTION_ALG when that is an RSA algorithm (default PS256).
 ##########################################################################################

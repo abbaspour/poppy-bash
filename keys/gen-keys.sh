@@ -6,8 +6,8 @@
 # License: LGPL 2.1
 #
 # gen-keys.sh: creates the Personal Agent's long-lived keys, whose public halves go in
-# jwks.json (§4.1):
-#   agent-ec-private.pem   P-256, signs delegations (§5.2) and ES256 client assertions
+# jwks.json (section 4.1):
+#   agent-ec-private.pem   P-256, signs delegations (section 5.2) and ES256 client assertions
 #   agent-rsa-private.pem  RSA 3072, signs PS256/RS256 client assertions, for authorization
 #                          servers that don't accept ES256 or PS384, such as Auth0
 # Existing keys are kept unless -f is given.

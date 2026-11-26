@@ -5,14 +5,14 @@
 # Date: 2026-11-18
 # License: LGPL 2.1
 #
-# chat.sh: a text chat with a Company's agent (§8), on top of converse.sh. Every turn is one
+# chat.sh: a text chat with a Company's agent (section 8), on top of converse.sh. Every turn is one
 # converse.sh call, so request IDs, cursors, Sessions, tokens and refresh all work as they do there.
 #
 #   - Type a message to send it; the Company's reply is shown when it arrives.
 #   - An `authorization` event (the Company needs the User's account) asks to sign in with
-#     sign-in.sh, then sends the same message again in the same conversation (§8.11).
+#     sign-in.sh, then sends the same message again in the same conversation (section 8.11).
 #   - A `user_requested` event (the Company asks to talk with the User) asks to open a Direct
-#     Conversation. In it the User's own words are sent as author.type human (§8.10).
+#     Conversation. In it the User's own words are sent as author.type human (section 8.10).
 #   - Lines starting with / are commands; /help lists them.
 #
 # Uses gum (https://github.com/charmbracelet/gum) for the spinner, prompts and styling when it is
@@ -215,7 +215,7 @@ function settle() {
     return 0
 }
 
-# the Company asked for something: sign in (§8.11), or a Direct Conversation (§8.10)
+# the Company asked for something: sign in (section 8.11), or a Direct Conversation (section 8.10)
 function follow_up() {
     if [[ -n ${need_scope} ]]; then
         local scope=${need_scope}

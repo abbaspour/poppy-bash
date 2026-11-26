@@ -6,7 +6,7 @@
 # License: LGPL 2.1
 #
 # decode.sh: prints the header and payload of a compact JWT, without verifying it. With -D,
-# also decodes the delegation that a Session JWT carries in its poppy_dlg header (§5.2).
+# also decodes the delegation that a Session JWT carries in its poppy_dlg header (section 5.2).
 ##########################################################################################
 
 set -ueo pipefail

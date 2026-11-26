@@ -7,8 +7,8 @@
 #
 # sign-out.sh: ends the agent's access to the User's account at a Company by revoking its
 # refresh token at the revocation_endpoint, with token_type_hint=refresh_token and a client
-# assertion (§4.6). The User's Sessions continue signed out: requests keep the Session header
-# and carry no access token (§5.5).
+# assertion (section 4.6). The User's Sessions continue signed out: requests keep the Session header
+# and carry no access token (section 5.5).
 ##########################################################################################
 
 set -ueo pipefail
@@ -69,7 +69,7 @@ key=$(assertion_key)
 kid=$("${DIR}/jwt/jwk.sh" -f "${key}" -t)
 readonly issuer oidc key kid
 
-# RFC 7009 §2.2: a token that's already invalid also gets HTTP 200, so any 2xx means signed out
+# RFC 7009 section 2.2: a token that's already invalid also gets HTTP 200, so any 2xx means signed out
 if ! "${oidc}/revoke-refresh-token.sh" -d "$(issuer_host "${issuer}")" -c "${CLIENT_ID}" \
     -k "${kid}" -K "${key}" -A "${CLIENT_ASSERTION_ALG}" -x '' -r "$(jq -r .refresh_token "${tokens}")" >/dev/null 2>"${tokens}.err"; then
     echo >&2 "ERROR: revocation failed; still signed in: $(tr '\n' ' ' <"${tokens}.err")"
@@ -78,4 +78,4 @@ if ! "${oidc}/revoke-refresh-token.sh" -d "$(issuer_host "${issuer}")" -c "${CLI
 fi
 rm -f "${tokens}.err" "${tokens}"
 
-echo >&2 "signed out of $(jq -r .organization.name "${discovery}") (${domain}). Sessions continue signed out (§5.5)."
+echo >&2 "signed out of $(jq -r .organization.name "${discovery}") (${domain}). Sessions continue signed out (section 5.5)."

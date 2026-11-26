@@ -6,22 +6,20 @@
 # License: LGPL 2.1
 #
 # sign-in.sh: the User signs in to their account at a Company and approves the agent's access
-# (§4). Sign-in is plain OAuth and doesn't involve a Session: the tokens it stores serve any of
-# the User's Sessions at this Company (§5.4).
+# (section 4). Sign-in is plain OAuth and doesn't involve a Session: the tokens it stores serve any of
+# the User's Sessions at this Company (section 5.4).
 #
-#   Direct Sign-In (§4.2): authorization code + PKCE, with prompt=consent because the redirect
+#   Direct Sign-In (section 4.2): authorization code + PKCE, with prompt=consent because the redirect
 #     comes back through a public URL rather than only to this device. PAR when the issuer lists
 #     it. The redirect's iss must be the Company's issuer exactly (RFC 9207).
-#   Device Sign-In (§4.3): device authorization grant. The link is shown only if its host is the
-#     issuer's or organization.domain's (or a subdomain), together with the Company's name.
 #
-# By default the sign-in names no resource, so it covers every service the Company offers (§4.5).
+# By default the sign-in names no resource, so it covers every service the Company offers (section 4.5).
 # -R (or POPPY_SIGN_IN_RESOURCES) names resources anyway, for issuers that need one to choose the
 # token's audience. The Company's default resource is then always among them, so the default
-# token stays available (§4.5).
+# token stays available (section 4.5).
 #
 # Every token request authenticates with a private_key_jwt client assertion whose aud is the
-# issuer (§4.1). oidc-bash makes the OAuth requests; this script adds Poppy's rules.
+# issuer (section 4.1). oidc-bash makes the OAuth requests; this script adds Poppy's rules.
 ##########################################################################################
 
 set -ueo pipefail
@@ -40,25 +38,28 @@ declare -i wait_seconds=300
 
 function usage() {
     cat <<END >&2
-USAGE: $0 [-e env] [-d domain] [-u user] -s scopes [-m direct|device] [-R resource]... [-F callback_url] [-w seconds] [-C] [-n] [-h|?] [-v]
+USAGE: $0 [-e env] [-d domain] [-u user] -s scopes [-R resource]... [-F callback_url] [-w seconds] [-C] [-n] [-h|?] [-v]
         -e file        # .env file location
         -d domain      # Company domain (default COMPANY_DOMAIN, or last discovered)
         -u user        # local User (default POPPY_USER=${POPPY_USER})
-        -s scopes      # comma separated scopes to request (§4.7). Scopes already granted are kept.
-        -m method      # direct or device (default: direct when the Company offers it)
+        -s scopes      # comma separated scopes to request (section 4.7). Scopes already granted are kept.
         -R resource    # name this resource at sign-in (repeatable; "default" is https://{organization.domain}).
-                       # Poppy says not to (§4.5); default POPPY_SIGN_IN_RESOURCES=${POPPY_SIGN_IN_RESOURCES:-none}
+                       # Poppy says not to (section 4.5); default POPPY_SIGN_IN_RESOURCES=${POPPY_SIGN_IN_RESOURCES:-none}
         -F url         # finish a Direct Sign-In with the full callback URL from the browser,
                        # instead of waiting for web/server.sh to receive it
-        -w seconds     # how long to wait for the callback or the device approval (default ${wait_seconds})
+        -w seconds     # how long to wait for the callback (default ${wait_seconds})
         -C             # copy the sign-in link to the clipboard
         -n             # don't open the browser; only print the link
         -h|?           # usage
         -v             # verbose
 
+scopes (the shop's OpenAPI document, https://shop.abbaspour.net/openapi.json):
+            # See your orders and returns. Needed to track an order or find one to return
+        orders:write   # Place orders from your cart and return items. Needed for any change to an order
+
 eg,
      $0 -s orders:read
-     $0 -s orders:read,orders:write -m device -C
+     $0 -s orders:read,orders:write,poppy:browser-sign-in,offline_access -C
      $0 -s orders:read -R default         # for an issuer that needs a resource
      $0 -F 'https://agent.example.dev/callback?code=...&state=...&iss=...'
 END
@@ -67,21 +68,19 @@ END
 
 declare domain=''
 declare requested=''
-declare method=''
 declare callback_url=''
 declare -a resource_args=()
 declare -i opt_no_browser=0
 declare -i opt_clipboard=0
 declare -i opt_verbose=0
 
-while getopts ":e:d:u:s:m:R:F:w:Cnhv" opt; do
+while getopts ":e:d:u:s:R:F:w:Cnhv" opt; do
     case ${opt} in
     e) # shellcheck disable=SC1090
        source "${OPTARG}" ;;
     d) domain=${OPTARG} ;;
     u) POPPY_USER=${OPTARG} ;;
     s) requested=${OPTARG} ;;
-    m) method=${OPTARG} ;;
     R) resource_args+=("${OPTARG}") ;;
     F) callback_url=${OPTARG} ;;
     w) wait_seconds=${OPTARG} ;;
@@ -97,7 +96,7 @@ while getopts ":e:d:u:s:m:R:F:w:Cnhv" opt; do
 done
 
 [[ -z "${CLIENT_ID}" ]] && { echo >&2 "ERROR: CLIENT_ID undefined; set AGENT_BASE_URL in .env"; usage 1; }
-[[ -z "${requested}" && -z "${callback_url}" ]] && { echo >&2 "ERROR: scopes undefined; every sign-in names its scopes (§4.7)"; usage 1; }
+[[ -z "${requested}" && -z "${callback_url}" ]] && { echo >&2 "ERROR: scopes undefined; every sign-in names its scopes (section 4.7)"; usage 1; }
 
 domain=$(resolve_domain "${domain}")
 readonly domain
@@ -109,7 +108,7 @@ issuer=$(jq -r '.issuer // empty' "${discovery}")
 org_name=$(jq -r '.organization.name' "${discovery}")
 readonly company_id issuer org_name
 
-jq -e '.sign_in.available' "${discovery}" >/dev/null || die "${org_name} (${domain}) offers no sign-in (§3.2)"
+jq -e '.sign_in.available' "${discovery}" >/dev/null || die "${org_name} (${domain}) offers no sign-in (section 3.2)"
 
 dir=$(company_dir "${company_id}")
 tokens=$(tokens_file "${company_id}")
@@ -151,19 +150,19 @@ readonly -a assertion=(-k "${kid}" -K "${key}" -A "${CLIENT_ASSERTION_ALG}")
 # oidc-bash .env might set, for the scripts that take one (OIDC_BASH_NO_DOTENV=1 already skips it)
 readonly -a no_secret=(-x '')
 
-# --- what to request (§4.7) ---
+# --- what to request (section 4.7) ---
 function normalize_scopes() { tr ', ' '\n\n' | sed '/^$/d' | awk '!seen[$0]++' | paste -sd ' ' -; }
 
 declare scopes
 scopes=$(normalize_scopes <<<"${requested}")
-# signing in again: request every scope still needed, including those granted before (§4.7)
+# signing in again: request every scope still needed, including those granted before (section 4.7)
 if [[ -s ${tokens} ]]; then
     scopes=$(printf '%s %s' "$(jq -r '.scope // ""' "${tokens}")" "${scopes}" | normalize_scopes)
 fi
 if [[ " ${scopes} " == *" poppy:browser-sign-in "* ]] && ! jq -e '.poppy.web.browser_session_endpoint' "${discovery}" >/dev/null; then
-    die "poppy:browser-sign-in is only for Companies that list web.browser_session_endpoint (§6)"
+    die "poppy:browser-sign-in is only for Companies that list web.browser_session_endpoint (section 6)"
 fi
-# Auth0 issues a refresh token only for offline_access; Poppy needs one from every sign-in (§4.4)
+# Auth0 issues a refresh token only for offline_access; Poppy needs one from every sign-in (section 4.4)
 if jq -e '.authorization_server.scopes_supported // [] | index("offline_access")' "${discovery}" >/dev/null &&
     [[ " ${scopes} " != *" offline_access "* ]]; then
     scopes="${scopes:+${scopes} }offline_access"
@@ -171,14 +170,14 @@ if jq -e '.authorization_server.scopes_supported // [] | index("offline_access")
 fi
 readonly scopes
 
-# --- resources to name at sign-in (§4.5): none, unless asked ---
+# --- resources to name at sign-in (section 4.5): none, unless asked ---
 default_resource=$(jq -r '.website | rtrimstr("/")' "${discovery}")
 readonly default_resource
 declare -a resources=()
 if [[ ${#resource_args[@]} -eq 0 && -n ${POPPY_SIGN_IN_RESOURCES} ]]; then
     read -r -a resource_args <<<"${POPPY_SIGN_IN_RESOURCES//,/ }"
 fi
-# signing in again names the resources the first sign-in did, like it keeps the scopes (§4.7)
+# signing in again names the resources the first sign-in did, like it keeps the scopes (section 4.7)
 if [[ -s ${tokens} ]]; then
     while read -r r; do resource_args+=("${r}"); done < <(jq -r '.resources // [] | .[]' "${tokens}")
 fi
@@ -188,153 +187,101 @@ for r in ${resource_args[@]+"${resource_args[@]}"}; do
     [[ " ${resources[*]-} " == *" ${r} "* ]] || resources+=("${r}")
 done
 # after a sign-in that names resources, only one that named the default resource gets the
-# default token (§4.5), so always name it too
+# default token (section 4.5), so always name it too
 if [[ ${#resources[@]} -gt 0 && " ${resources[*]} " != *" ${default_resource} "* ]]; then
     resources=("${default_resource}" "${resources[@]}")
 fi
 readonly resources
 [[ ${#resources[@]} -gt 0 ]] &&
-    echo >&2 "note: naming resources at sign-in, which Poppy says not to (§4.5): ${resources[*]}"
+    echo >&2 "note: naming resources at sign-in, which Poppy says not to (section 4.5): ${resources[*]}"
 
-# --- choose the sign-in type (§4) ---
-if [[ -z ${method} ]]; then
-    if jq -e '.sign_in.direct' "${discovery}" >/dev/null; then method=direct
-    elif jq -e '.sign_in.device' "${discovery}" >/dev/null; then method=device
-    else die "${org_name} offers neither Direct nor Device Sign-In"; fi
-fi
-readonly method
-[[ ${method} == direct || ${method} == device ]] || { echo >&2 "ERROR: method must be direct or device"; usage 1; }
-jq -e --arg m "${method}" '.sign_in[$m]' "${discovery}" >/dev/null || die "${org_name} doesn't offer ${method} sign-in"
+# --- Direct Sign-In is the only sign-in type (section 4.2) ---
+jq -e '.sign_in.direct' "${discovery}" >/dev/null || die "${org_name} doesn't offer Direct Sign-In"
 
 declare response=''
 
-if [[ ${method} == direct ]]; then
-    [[ -n ${AGENT_BASE_URL} ]] || die "AGENT_BASE_URL undefined; Direct Sign-In returns to \${AGENT_BASE_URL}/callback"
-    readonly redirect_uri="${AGENT_BASE_URL%/}/callback"
+[[ -n ${AGENT_BASE_URL} ]] || die "AGENT_BASE_URL undefined; Direct Sign-In returns to \${AGENT_BASE_URL}/callback"
+readonly redirect_uri="${AGENT_BASE_URL%/}/callback"
 
-    if [[ -z ${callback_url} ]]; then
-        # --- start: build the authorization request ---
-        state="$(rand_id)$(rand_id)"
-        # -r '' and -x '': Poppy has no connection, and the agent uses no client secret
-        declare -a args=(-d "${host}" -c "${CLIENT_ID}" -f pkce -s "${scopes// /,}" -p consent
-            -S "${state}" -n "$(rand_id)" -u "${redirect_uri}" -r '' -x '' -N)
-        # §4.2: PAR whenever the issuer lists it, with the client assertion
-        jq -e '.sign_in.par' "${discovery}" >/dev/null && args+=(-Q -k "${kid}" -K "${key}" -Y "${CLIENT_ASSERTION_ALG}")
-        for r in ${resources[@]+"${resources[@]}"}; do args+=(-q "${r}"); done
-        out=$("${oidc}/authorize.sh" "${args[@]}") || die "authorize.sh failed: ${out:-no output}"
-        code_verifier=$(sed -n 's/^code_verifier=//p' <<<"${out}")
-        authorize_url=$(grep -E '^https://' <<<"${out}" | tail -1)
-        [[ -n ${code_verifier} && -n ${authorize_url} ]] || die "authorize.sh didn't return a URL and code_verifier"
+if [[ -z ${callback_url} ]]; then
+    # --- start: build the authorization request ---
+    state="$(rand_id)$(rand_id)"
+    # -r '' and -x '': Poppy has no connection, and the agent uses no client secret
+    declare -a args=(-d "${host}" -c "${CLIENT_ID}" -f pkce -s "${scopes// /,}" -p consent
+        -S "${state}" -n "$(rand_id)" -u "${redirect_uri}" -r '' -x '' -N)
+    # section 4.2: PAR whenever the issuer lists it, with the client assertion
+    jq -e '.sign_in.par' "${discovery}" >/dev/null && args+=(-Q -k "${kid}" -K "${key}" -Y "${CLIENT_ASSERTION_ALG}")
+    for r in ${resources[@]+"${resources[@]}"}; do args+=(-q "${r}"); done
+    out=$("${oidc}/authorize.sh" "${args[@]}") || die "authorize.sh failed: ${out:-no output}"
+    code_verifier=$(sed -n 's/^code_verifier=//p' <<<"${out}")
+    authorize_url=$(grep -E '^https://' <<<"${out}" | tail -1)
+    [[ -n ${code_verifier} && -n ${authorize_url} ]] || die "authorize.sh didn't return a URL and code_verifier"
 
-        # the browser must go to the authorization_endpoint this Company's metadata names (§3.2)
-        endpoint=$(jq -r '.authorization_server.authorization_endpoint' "${discovery}")
-        [[ ${authorize_url} == "${endpoint}?"* ]] || die "authorization URL isn't at ${endpoint}"
+    # the browser must go to the authorization_endpoint this Company's metadata names (section 3.2)
+    endpoint=$(jq -r '.authorization_server.authorization_endpoint' "${discovery}")
+    [[ ${authorize_url} == "${endpoint}?"* ]] || die "authorization URL isn't at ${endpoint}"
 
-        jq -n --arg state "${state}" --arg verifier "${code_verifier}" --arg issuer "${issuer}" \
-            --arg redirect_uri "${redirect_uri}" --arg scope "${scopes}" --arg started_at "$(iso_now)" \
-            '{state: $state, code_verifier: $verifier, issuer: $issuer, redirect_uri: $redirect_uri, scope: $scope, started_at: $started_at}' \
-            >"${pending}"
+    jq -n --arg state "${state}" --arg verifier "${code_verifier}" --arg issuer "${issuer}" \
+        --arg redirect_uri "${redirect_uri}" --arg scope "${scopes}" --arg started_at "$(iso_now)" \
+        '{state: $state, code_verifier: $verifier, issuer: $issuer, redirect_uri: $redirect_uri, scope: $scope, started_at: $started_at}' \
+        >"${pending}"
 
-        echo >&2 "Sign in to ${org_name} (${domain}) and approve: ${scopes}"
-        show_link "${authorize_url}"
+    echo >&2 "Sign in to ${org_name} (${domain}) and approve: ${scopes}"
+    show_link "${authorize_url}"
 
-        # --- wait for web/public/cgi-bin/callback.sh ---
-        callback_file="${POPPY_STATE}/callbacks/${state}.json"
-        echo >&2 "waiting up to ${wait_seconds}s for the redirect to ${redirect_uri} (make serve and make tunnel must be running)"
-        echo >&2 "or finish later with: $0 -F '<the URL the browser ends up on>'"
-        declare -i waited=0
-        until [[ -s ${callback_file} ]]; do
-            (( waited >= wait_seconds )) && die "no callback after ${wait_seconds}s; finish with -F, or sign in again"
-            sleep 1
-            waited+=1
-        done
-        callback=$(cat "${callback_file}")
-        rm -f "${callback_file}"
-    else
-        # --- finish with a callback URL the User pasted ---
-        [[ -s ${pending} ]] || die "no pending Direct Sign-In at ${company_id}"
-        query=$(url_part "${callback_url}" query)
-        # the callback URL's query parameters, decoded, as callback.sh would have saved them
-        callback=$(python3 -c 'import json,sys,urllib.parse; print(json.dumps({k: v[0] for k, v in urllib.parse.parse_qs(sys.argv[1]).items()}))' "${query#\?}")
-    fi
-
-    [[ -s ${pending} ]] || die "no pending sign-in; it may have finished already"
-    state=$(jq -r .state "${pending}")
-    code_verifier=$(jq -r .code_verifier "${pending}")
-
-    # --- check the authorization response ---
-    [[ $(jq -r '.state // ""' <<<"${callback}") == "${state}" ]] || die "the callback's state isn't this sign-in's"
-    # §4.2, RFC 9207: iss must be the issuer this sign-in started with, also on errors
-    cb_iss=$(jq -r '.iss // ""' <<<"${callback}")
-    [[ -n ${cb_iss} ]] || die "the callback has no iss; can't tell which authorization server answered (RFC 9207)"
-    [[ ${cb_iss} == "${issuer}" ]] || die "the callback's iss '${cb_iss}' isn't ${issuer}; refusing a mixed-up response"
-    rm -f "${pending}"
-    if [[ -n $(jq -r '.error // ""' <<<"${callback}") ]]; then
-        err=$(jq -r .error <<<"${callback}")
-        [[ ${err} == access_denied ]] && die "the User declined; existing tokens are unchanged (§4.7)"
-        die "sign-in failed: ${err}: $(jq -r '.error_description // ""' <<<"${callback}")"
-    fi
-    code=$(jq -r '.code // ""' <<<"${callback}")
-    [[ -n ${code} ]] || die "the callback has no code"
-
-    # --- exchange the code, with the client assertion (§4.2) ---
-    log "POST token endpoint: authorization_code"
-    response=$("${oidc}/code-exchange.sh" -d "${host}" -c "${CLIENT_ID}" "${assertion[@]}" "${no_secret[@]}" \
-        -a "${code}" -X "${code_verifier}" -u "${redirect_uri}") || die "code-exchange.sh failed"
-else
-    # --- Device Sign-In (§4.3) ---
-    # device-flow.sh never sends a client secret, so it takes no -x
-    declare -a device_args=(-d "${host}" -c "${CLIENT_ID}" "${assertion[@]}" -s "${scopes// /,}")
-    for r in ${resources[@]+"${resources[@]}"}; do device_args+=(-R "${r}"); done
-    device=$("${oidc}/device-flow.sh" "${device_args[@]}" 2>/dev/null) ||
-        die "device-flow.sh failed"
-    if jq -e '.error' <<<"${device}" >/dev/null; then
-        die "device authorization failed: $(jq -r '"\(.error): \(.error_description // "")"' <<<"${device}")"
-    fi
-    device_code=$(jq -r .device_code <<<"${device}")
-    declare -i interval
-    interval=$(jq -r '.interval // 5' <<<"${device}")
-    declare -i expires_in
-    expires_in=$(jq -r '.expires_in // 600' <<<"${device}")
-
-    # §4.3: the link's host must be the issuer's or organization.domain's, or a subdomain of either
-    link=$(jq -r '.verification_uri_complete // .verification_uri' <<<"${device}")
-    link_host=$(url_part "${link}" authority)
-    [[ ${link_host} == "${host}" || ${link_host} == *".${host}" || ${link_host} == "${domain}" || ${link_host} == *".${domain}" ]] ||
-        die "the sign-in link is on ${link_host}, which is neither ${host} nor ${domain}; not showing it (§4.3)"
-
-    echo >&2 "Sign in to ${org_name} (${domain}) on any device, and approve: ${scopes}"
-    echo >&2 "code: $(jq -r .user_code <<<"${device}")"
-    show_link "${link}"
-
-    # poll the token endpoint every interval seconds (RFC 8628 §3.4-3.5), with the assertion each time
+    # --- wait for web/public/cgi-bin/callback.sh ---
+    callback_file="${POPPY_STATE}/callbacks/${state}.json"
+    echo >&2 "waiting up to ${wait_seconds}s for the redirect to ${redirect_uri} (make serve and make tunnel must be running)"
+    echo >&2 "or finish later with: $0 -F '<the URL the browser ends up on>'"
     declare -i waited=0
-    while :; do
-        (( waited >= expires_in || waited >= wait_seconds )) && die "no approval in time; sign in again"
-        sleep "${interval}"
-        waited+=interval
-        response=$("${oidc}/code-exchange.sh" -d "${host}" -c "${CLIENT_ID}" "${assertion[@]}" "${no_secret[@]}" -C "${device_code}" -u '') ||
-            die "code-exchange.sh failed"
-        case $(jq -r '.error // ""' <<<"${response}") in
-        '') break ;;
-        authorization_pending) ;;
-        slow_down) interval+=5 ;;
-        access_denied) die "the User declined; existing tokens are unchanged (§4.7)" ;;
-        expired_token) die "the code expired; sign in again" ;;
-        *) die "sign-in failed: $(jq -r '"\(.error): \(.error_description // "")"' <<<"${response}")" ;;
-        esac
+    until [[ -s ${callback_file} ]]; do
+        (( waited >= wait_seconds )) && die "no callback after ${wait_seconds}s; finish with -F, or sign in again"
+        sleep 1
+        waited+=1
     done
+    callback=$(cat "${callback_file}")
+    rm -f "${callback_file}"
+else
+    # --- finish with a callback URL the User pasted ---
+    [[ -s ${pending} ]] || die "no pending Direct Sign-In at ${company_id}"
+    query=$(url_part "${callback_url}" query)
+    # the callback URL's query parameters, decoded, as callback.sh would have saved them
+    callback=$(python3 -c 'import json,sys,urllib.parse; print(json.dumps({k: v[0] for k, v in urllib.parse.parse_qs(sys.argv[1]).items()}))' "${query#\?}")
 fi
 
-# --- the token response (§4.7) ---
+[[ -s ${pending} ]] || die "no pending sign-in; it may have finished already"
+state=$(jq -r .state "${pending}")
+code_verifier=$(jq -r .code_verifier "${pending}")
+
+# --- check the authorization response ---
+[[ $(jq -r '.state // ""' <<<"${callback}") == "${state}" ]] || die "the callback's state isn't this sign-in's"
+# section 4.2, RFC 9207: iss must be the issuer this sign-in started with, also on errors
+cb_iss=$(jq -r '.iss // ""' <<<"${callback}")
+[[ -n ${cb_iss} ]] || die "the callback has no iss; can't tell which authorization server answered (RFC 9207)"
+[[ ${cb_iss} == "${issuer}" ]] || die "the callback's iss '${cb_iss}' isn't ${issuer}; refusing a mixed-up response"
+rm -f "${pending}"
+if [[ -n $(jq -r '.error // ""' <<<"${callback}") ]]; then
+    err=$(jq -r .error <<<"${callback}")
+    [[ ${err} == access_denied ]] && die "the User declined; existing tokens are unchanged (section 4.7)"
+    die "sign-in failed: ${err}: $(jq -r '.error_description // ""' <<<"${callback}")"
+fi
+code=$(jq -r '.code // ""' <<<"${callback}")
+[[ -n ${code} ]] || die "the callback has no code"
+
+# --- exchange the code, with the client assertion (section 4.2) ---
+log "POST token endpoint: authorization_code"
+response=$("${oidc}/code-exchange.sh" -d "${host}" -c "${CLIENT_ID}" "${assertion[@]}" "${no_secret[@]}" \
+    -a "${code}" -X "${code_verifier}" -u "${redirect_uri}") || die "code-exchange.sh failed"
+
+# --- the token response (section 4.7) ---
 if jq -e '.error' <<<"${response}" >/dev/null; then
     die "token request failed: $(jq -r '"\(.error): \(.error_description // "")"' <<<"${response}")"
 fi
 jq -e '.access_token' <<<"${response}" >/dev/null || die "the token response has no access_token"
 jq -e '.refresh_token' <<<"${response}" >/dev/null ||
-    die "the token response has no refresh_token; Poppy needs one from every sign-in (§4.4). On Auth0, allow offline access on the API"
+    die "the token response has no refresh_token; Poppy needs one from every sign-in (section 4.4). On Auth0, allow offline access on the API"
 
-# without scope in the response, the Company granted exactly what was requested (RFC 6749 §5.1)
+# without scope in the response, the Company granted exactly what was requested (RFC 6749 section 5.1)
 granted=$(jq -r --arg req "${scopes}" '.scope // $req' <<<"${response}" | normalize_scopes)
 readonly granted
 
@@ -343,15 +290,15 @@ old_refresh_token=''
 
 now=$(date +%s)
 resources_json=$(printf '%s\n' ${resources[@]+"${resources[@]}"} | jq -R 'select(. != "")' | jq -sc .)
-jq -n --argjson r "${response}" --arg issuer "${issuer}" --arg scope "${granted}" --arg method "${method}" \
+jq -n --argjson r "${response}" --arg issuer "${issuer}" --arg scope "${granted}" \
     --arg at "$(iso_now)" --argjson now "${now}" --argjson resources "${resources_json}" \
-    '{issuer: $issuer, method: $method, signed_in_at: $at, scope: $scope, refresh_token: $r.refresh_token}
+    '{issuer: $issuer, signed_in_at: $at, scope: $scope, refresh_token: $r.refresh_token}
      + (if ($resources | length) > 0 then {resources: $resources} else {} end) + {
       access_tokens: {default: {access_token: $r.access_token, token_type: ($r.token_type // "Bearer"),
                                 scope: ($r.scope // $scope), expires_at: ($now + ($r.expires_in // 300))}}}' >"${tokens}.tmp"
 mv "${tokens}.tmp" "${tokens}"
 
-# the new refresh token replaces the old one, which the agent SHOULD revoke (§4.7); not a sign-out
+# the new refresh token replaces the old one, which the agent SHOULD revoke (section 4.7); not a sign-out
 if [[ -n ${old_refresh_token} && ${old_refresh_token} != "$(jq -r .refresh_token "${tokens}")" ]]; then
     "${oidc}/revoke-refresh-token.sh" -d "${host}" -c "${CLIENT_ID}" "${assertion[@]}" "${no_secret[@]}" -r "${old_refresh_token}" >/dev/null 2>&1 ||
         echo >&2 "note: couldn't revoke the replaced refresh token"
@@ -360,4 +307,4 @@ fi
 echo >&2 "signed in to ${org_name} (${domain}) with: ${granted}"
 missing=$(comm -23 <(tr ' ' '\n' <<<"${scopes}" | sort) <(tr ' ' '\n' <<<"${granted}" | sort) | paste -sd ' ' -)
 [[ -n ${missing} ]] && echo >&2 "note: not granted: ${missing}"
-jq '{issuer, method, signed_in_at, scope} + (if .resources then {resources} else {} end)' "${tokens}"
+jq '{issuer, signed_in_at, scope} + (if .resources then {resources} else {} end)' "${tokens}"

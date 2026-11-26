@@ -6,12 +6,12 @@
 # License: LGPL 2.1
 #
 # token.sh: prints a valid access token for the signed-in User at a Company, refreshing it with
-# the refresh token and a client assertion when it is missing or about to expire (§4.4).
-#   - A new refresh token in the response replaces the old one (rotation, RFC 6749 §6).
-#   - -R gets a token for one service whose protected resource metadata asks for its own (§4.5).
-#   - -s asks for fewer scopes than the refresh token has, eg. read-only for a lookup (§4.4).
+# the refresh token and a client assertion when it is missing or about to expire (section 4.4).
+#   - A new refresh token in the response replaces the old one (rotation, RFC 6749 section 6).
+#   - -R gets a token for one service whose protected resource metadata asks for its own (section 4.5).
+#   - -s asks for fewer scopes than the refresh token has, eg. read-only for a lookup (section 4.4).
 #   - invalid_grant means the User signed out or disconnected the agent: the tokens are dropped
-#     and the Sessions continue signed out (§5.5). Exit 20.
+#     and the Sessions continue signed out (section 5.5). Exit 20.
 ##########################################################################################
 
 set -ueo pipefail
@@ -31,8 +31,8 @@ USAGE: $0 [-e env] [-d domain] [-u user] [-R resource] [-s scopes] [-f] [-h|?] [
         -e file        # .env file location
         -d domain      # Company domain (default COMPANY_DOMAIN, or last discovered)
         -u user        # local User (default POPPY_USER=${POPPY_USER})
-        -R resource    # a token for this resource only (§4.5)
-        -s scopes      # comma separated subset of the granted scopes (§4.4)
+        -R resource    # a token for this resource only (section 4.5)
+        -s scopes      # comma separated subset of the granted scopes (section 4.4)
         -f             # refresh even if the cached access token is still valid
         -h|?           # usage
         -v             # verbose: print what happened on stderr
@@ -82,7 +82,7 @@ readonly tokens
 
 function log() { [[ ${opt_verbose} -eq 1 ]] && echo >&2 "> $*"; return 0; }
 
-# §4.5: a sign-in that named resources covers only those; the default token is the one for
+# section 4.5: a sign-in that named resources covers only those; the default token is the one for
 # https://{organization.domain}, which sign-in.sh always names alongside
 wanted=${resource:-$(jq -r '.website | rtrimstr("/")' "${discovery}")}
 if jq -e '.resources' "${tokens}" >/dev/null && ! jq -e --arg w "${wanted}" '.resources | index($w)' "${tokens}" >/dev/null; then
@@ -107,7 +107,7 @@ fi
 issuer=$(jq -r .issuer "${tokens}")
 readonly issuer
 [[ ${issuer} == "$(jq -r '.issuer // ""' "${discovery}")" ]] ||
-    die "these tokens are from ${issuer}, but ${domain} now uses another issuer; sign in again (§3.2)"
+    die "these tokens are from ${issuer}, but ${domain} now uses another issuer; sign in again (section 3.2)"
 
 oidc=$(oidc_bash)
 key=$(assertion_key)
@@ -127,13 +127,13 @@ readonly response
 case $(jq -r '.error // ""' <<<"${response}") in
 '') ;;
 invalid_grant)
-    # §5.5: the refresh token is no longer valid; continue signed out
+    # section 5.5: the refresh token is no longer valid; continue signed out
     rm -f "${tokens}"
     echo >&2 "signed out: the refresh token is no longer valid (the User signed out or disconnected this agent)."
-    echo >&2 "Sessions continue signed out; sign in again only if the User asks to (§5.5)."
+    echo >&2 "Sessions continue signed out; sign in again only if the User asks to (section 5.5)."
     exit 20 ;;
 invalid_target)
-    die "${domain} doesn't offer ${resource} to this agent (§4.5)" ;;
+    die "${domain} doesn't offer ${resource} to this agent (section 4.5)" ;;
 *)
     die "refresh failed: $(jq -r '"\(.error): \(.error_description // "")"' <<<"${response}")" ;;
 esac

@@ -5,7 +5,7 @@
 # Date: 2026-11-17
 # License: LGPL 2.1
 #
-# session-jwt.sh: signs the Session JWT for one request (§5.2), the value of Poppy-Session.
+# session-jwt.sh: signs the Session JWT for one request (section 5.2), the value of Poppy-Session.
 #   header  {typ: poppy-session+jwt, alg: ES256, kid: <delegated key thumbprint>, poppy_dlg}
 #   claims  {iss, aud, sid, sub, [agent_id], htm, htu, iat, jti, [ath]}
 # htu is the request URL without query or fragment. ath, the hash of the access token, is

@@ -5,7 +5,7 @@
 # Date: 2026-11-17
 # License: LGPL 2.1
 #
-# delegation.sh: makes sure the User has a valid delegated key at a Company (§5.2), and
+# delegation.sh: makes sure the User has a valid delegated key at a Company (section 5.2), and
 # prints the directory that holds it (key.pem, delegation.jwt).
 #
 # Session JWTs are signed with a short-lived delegated key, not with a key from jwks.json.

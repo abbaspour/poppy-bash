@@ -6,7 +6,7 @@
 # License: LGPL 2.1
 #
 # jwk.sh: prints the public JWK of an EC P-256 or RSA key PEM file, or its RFC 7638
-# thumbprint. Poppy uses thumbprints as kid for jwks.json keys and delegated keys (§5.2).
+# thumbprint. Poppy uses thumbprints as kid for jwks.json keys and delegated keys (section 5.2).
 ##########################################################################################
 
 set -ueo pipefail

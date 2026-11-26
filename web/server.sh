@@ -6,7 +6,7 @@
 # License: LGPL 2.1 (adapted from https://github.com/abbaspour/oidc-bash web/server.sh)
 #
 # server.sh: serves web/public (cimd.json, jwks.json) and runs cgi-bin/ scripts; /callback
-# is routed to cgi-bin/callback.sh, the redirect_uri for Direct Sign-In (§4.2).
+# is routed to cgi-bin/callback.sh, the redirect_uri for Direct Sign-In (section 4.2).
 ##########################################################################################
 
 set -euo pipefail

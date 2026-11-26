@@ -5,21 +5,21 @@
 # Date: 2026-11-18
 # License: LGPL 2.1
 #
-# converse.sh: talks with the Company Agent over Personal Agent Protocol conversations (§8), at
+# converse.sh: talks with the Company Agent over Personal Agent Protocol conversations (section 8), at
 # the endpoint of the `poppy` entry in agent.protocols. Every request carries the Session header,
-# and an access token when the User is signed in (§8.2).
+# and an access token when the User is signed in (section 8.2).
 #
-#   - Each POST has a request id, so sending it again is safe (§8.3). A request that fails with
+#   - Each POST has a request id, so sending it again is safe (section 8.3). A request that fails with
 #     invalid_token is refreshed and sent again with the same id.
 #   - Events are read after the saved cursor, page by page while has_more, and an event id seen
-#     before is skipped (§8.5). Unknown event types are skipped.
+#     before is skipped (section 8.5). Unknown event types are skipped.
 #   - author.type is agent for what this agent writes, and human only for the User's own words,
-#     with -H (§8.8).
+#     with -H (section 8.8).
 #   - With -J, new events are printed as JSON lines, then one `_status` line, so a program such as
 #     chat.sh can react to them; the notes meant for a person stay on stderr.
 #   - An `authorization` event means the Company Agent needs the account: sign in, then continue
-#     the same conversation (§8.11). A `user_requested` event is an invitation to bring the User
-#     into a Direct Conversation, which only this agent can start (§8.10).
+#     the same conversation (section 8.11). A `user_requested` event is an invitation to bring the User
+#     into a Direct Conversation, which only this agent can start (section 8.10).
 ##########################################################################################
 
 set -ueo pipefail
@@ -43,10 +43,10 @@ USAGE: $0 [-e env] [-d domain] [-u user] [-s sid] [-w seconds] [-H] [-o] [-E eve
         -u user        # local User (default POPPY_USER=${POPPY_USER})
         -s sid         # Session (default: the current one)
         -w seconds     # how long the Company may hold a request for its reply (default ${wait_seconds})
-        -H             # the text is the User's own words: author.type human (§8.8)
+        -H             # the text is the User's own words: author.type human (section 8.8)
         -o             # signed out, even if the User is signed in
-        -E event_id    # with direct: the user_requested event being accepted (§8.10)
-        -L locale      # context.locale, eg. en-AU (§8.4)
+        -E event_id    # with direct: the user_requested event being accepted (section 8.10)
+        -L locale      # context.locale, eg. en-AU (section 8.4)
         -Z time_zone   # context.time_zone, eg. Australia/Sydney
         -U yes|no      # context.user_available: can the User answer questions now
         -j             # print raw JSON responses
@@ -54,14 +54,14 @@ USAGE: $0 [-e env] [-d domain] [-u user] [-s sid] [-w seconds] [-H] [-o] [-E eve
         -h|?           # usage
 
 commands:
-        start "text"                 start a conversation with its first message (§8.3)
+        start "text"                 start a conversation with its first message (section 8.3)
         send <cid> "text"            send another message
         read <cid>                   read new events (with -w, wait for them)
-        handoff <cid>                ask for a person at the Company (§8.9)
+        handoff <cid>                ask for a person at the Company (section 8.9)
         cancel <cid>                 withdraw the request for a person
-        close <cid>                  close the conversation (§8.12)
+        close <cid>                  close the conversation (section 8.12)
         direct <parent> ["text"]     start a Direct Conversation, with -E to accept the Company's
-                                     user_requested event; the User then talks themselves (§8.10)
+                                     user_requested event; the User then talks themselves (section 8.10)
         list                         conversations at this Company
 
 eg,
@@ -117,10 +117,10 @@ readonly domain
 discovery=$(load_discovery "${domain}")
 readonly discovery
 
-# §8.1: use the first protocol this agent supports, which is poppy
+# section 8.1: use the first protocol this agent supports, which is poppy
 endpoint=$(jq -r '[.poppy.agent.protocols // [] | .[] | select(.type == "poppy")][0].endpoint // empty' "${discovery}")
 readonly endpoint
-[[ -n ${endpoint} ]] || die "${domain} lists no poppy conversation endpoint in agent.protocols (§8.1)"
+[[ -n ${endpoint} ]] || die "${domain} lists no poppy conversation endpoint in agent.protocols (section 8.1)"
 
 company_id=$(jq -r .company_id "${discovery}")
 dir=$(company_dir "${company_id}")
@@ -129,7 +129,7 @@ readonly conversations="${dir}/conversations"
 umask 077
 mkdir -p "${conversations}"
 
-# --- local state per conversation: cursor and the event ids already handled (§8.5) ---
+# --- local state per conversation: cursor and the event ids already handled (section 8.5) ---
 function state_file() { echo "${conversations}/$1.json"; }
 
 function load_state() {
@@ -138,7 +138,7 @@ function load_state() {
     if [[ -s ${f} ]]; then cat "${f}"; else jq -n --arg id "$1" '{conversation_id: $id, cursor: null, seen: []}'; fi
 }
 
-# --- account access: like api.sh, signed in when the User has tokens here (§8.11) ---
+# --- account access: like api.sh, signed in when the User has tokens here (section 8.11) ---
 declare token=''
 declare -i signed_in=0
 if [[ ${opt_signed_out} -eq 0 && -s $(tokens_file "${company_id}") ]]; then
@@ -152,8 +152,8 @@ if [[ ${opt_signed_out} -eq 0 && -s $(tokens_file "${company_id}") ]]; then
     }
 fi
 
-# poppy-curl.sh, with the Session, the token, and one refresh on invalid_token (§7); the request id
-# in the body makes the retry safe (§8.3). Sets reply_body and last_rc: call it directly, not in
+# poppy-curl.sh, with the Session, the token, and one refresh on invalid_token (section 7); the request id
+# in the body makes the retry safe (section 8.3). Sets reply_body and last_rc: call it directly, not in
 # $(...), whose subshell would lose them.
 declare reply_body=''
 declare -i last_rc=0
@@ -171,17 +171,17 @@ function request() {
     return 0
 }
 
-# §8.13: conversation errors are JSON with an error code
+# section 8.13: conversation errors are JSON with an error code
 function explain_error() {
     local body=$1
     case $(jq -r '.error // ""' <<<"${body}" 2>/dev/null) in
-    conversation_not_found) echo >&2 "the conversation is unknown, or belongs to another agent, User or account (§8.2)" ;;
-    conversation_closed) echo >&2 "the conversation is closed; start a new one (§8.12)" ;;
+    conversation_not_found) echo >&2 "the conversation is unknown, or belongs to another agent, User or account (section 8.2)" ;;
+    conversation_closed) echo >&2 "the conversation is closed; start a new one (section 8.12)" ;;
     direct_conversation_open)
-        echo >&2 "a Direct Conversation is open: $(jq -r .conversation_id <<<"${body}"). Talk there, or close it (§8.10)" ;;
-    request_id_conflict) echo >&2 "a request id was reused with another body (§8.3)" ;;
-    cursor_expired) echo >&2 "the Company no longer has those events (§8.5)" ;;
-    version_mismatch) echo >&2 "the conversation started in Poppy $(jq -r .protocol_version <<<"${body}") (§8.2)" ;;
+        echo >&2 "a Direct Conversation is open: $(jq -r .conversation_id <<<"${body}"). Talk there, or close it (section 8.10)" ;;
+    request_id_conflict) echo >&2 "a request id was reused with another body (section 8.3)" ;;
+    cursor_expired) echo >&2 "the Company no longer has those events (section 8.5)" ;;
+    version_mismatch) echo >&2 "the conversation started in Poppy $(jq -r .protocol_version <<<"${body}") (section 8.2)" ;;
     '') ;;
     *) echo >&2 "error: $(jq -r '"\(.error)\(if .error_description then ": " + .error_description else "" end)"' <<<"${body}")" ;;
     esac
@@ -230,7 +230,7 @@ function print_events() {
         else empty end' <<<"${body}"
 }
 
-# reads events after the cursor until has_more is false (§8.5)
+# reads events after the cursor until has_more is false (section 8.5)
 function read_events() {
     local cid=$1 wait=$2 st cursor body url
     while :; do
@@ -254,7 +254,7 @@ function read_events() {
     done
 }
 
-# a message as §8.4 defines it, with this agent's context facts
+# a message as section 8.4 defines it, with this agent's context facts
 function message_json() {
     local text=$1 cid=${2:-} author=agent cursor=''
     [[ ${opt_human} -eq 1 ]] && author=human
@@ -264,7 +264,7 @@ function message_json() {
         if [[ ${k} == user_available ]]; then ctx=$(jq -c --arg k "${k}" --argjson v "${context[${k}]}" '.[$k] = $v' <<<"${ctx}")
         else ctx=$(jq -c --arg k "${k}" --arg v "${context[${k}]}" '.[$k] = $v' <<<"${ctx}"); fi
     done
-    # as_of_cursor only on what the agent's AI writes, never the User's own words (§8.4)
+    # as_of_cursor only on what the agent's AI writes, never the User's own words (section 8.4)
     jq -cn --arg type "${author}" --arg text "${text}" --argjson ctx "${ctx}" --arg cursor "${cursor}" '
         {author: {type: $type}}
         + (if $text != "" then {text: $text} else {} end)
@@ -272,7 +272,7 @@ function message_json() {
         + (if $cursor != "" then {as_of_cursor: $cursor} else {} end)'
 }
 
-# POSTs with ?wait so the Company's reply comes back in the same response (§8.3)
+# POSTs with ?wait so the Company's reply comes back in the same response (section 8.3)
 function post() {
     local cid=$1 url=$2 body=$3 cursor
     cursor=$(load_state "${cid}" | jq -r '.cursor // empty')
@@ -281,7 +281,7 @@ function post() {
     handle_read "${cid}" "${reply_body}"
 }
 
-# an ID (§8.2): 1 to 256 characters from the URL-safe base64 alphabet. Length is checked apart,
+# an ID (section 8.2): 1 to 256 characters from the URL-safe base64 alphabet. Length is checked apart,
 # since bash's regex can't repeat more than 255 times on every platform.
 function require_cid() {
     [[ -n ${1:-} && ${#1} -le 256 && ${1} =~ ^[A-Za-z0-9_-]+$ ]] || { echo >&2 "ERROR: conversation id required"; usage 1; }
@@ -314,21 +314,21 @@ handoff | cancel | close)
     [[ ${command} == cancel ]] && path=handoff/cancel
     [[ ${command} == close ]] && path=close
     if [[ ${command} == close ]]; then
-        # read until working is false first, so the Company has acted on everything sent (§8.12)
+        # read until working is false first, so the Company has acted on everything sent (section 8.12)
         read_events "$1" 5 >/dev/null || true
     fi
     post "$1" "${endpoint}/$1/${path}" "$(jq -cn --arg id "req_$(rand_id)" '{id: $id}')"
     ;;
 direct)
     require_cid "${1:-}"
-    # the User talks themselves in a Direct Conversation (§8.10)
+    # the User talks themselves in a Direct Conversation (section 8.10)
     opt_human=1
     body=$(jq -cn --arg id "dir_$(rand_id)" --arg parent "$1" --arg event "${event_id}" '{id: $id, parent_conversation_id: $parent}
         + (if $event != "" then {user_requested_event_id: $event} else {} end)')
     if [[ -n ${2:-} ]]; then
         body=$(jq -c --argjson m "$(message_json "$2")" '. + {message: $m}' <<<"${body}")
     elif [[ -z ${event_id} ]]; then
-        die "direct needs a first message, unless it accepts a user_requested event with -E (§8.10)"
+        die "direct needs a first message, unless it accepts a user_requested event with -E (section 8.10)"
     fi
     request POST "${endpoint}?wait=${wait_seconds}" "${body}"
     response=${reply_body}

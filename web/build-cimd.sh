@@ -5,7 +5,7 @@
 # Date: 2026-11-17
 # License: LGPL 2.1
 #
-# build-cimd.sh: writes the Personal Agent's client metadata document (§4.1, CIMD draft).
+# build-cimd.sh: writes the Personal Agent's client metadata document (section 4.1, CIMD draft).
 # Its client_id is the URL it is served from, and jwks_uri and redirect_uris are on the
 # same host, so everything comes from AGENT_BASE_URL.
 ##########################################################################################
@@ -68,7 +68,7 @@ jq -n \
         client_name: $client_name,
         jwks_uri: $jwks_uri,
         redirect_uris: [$redirect_uri],
-        grant_types: ["authorization_code", "refresh_token", "urn:ietf:params:oauth:grant-type:device_code"],
+        grant_types: ["authorization_code", "refresh_token"],
         response_types: ["code"],
         token_endpoint_auth_method: $auth_method,
         application_type: "web"

@@ -5,18 +5,18 @@
 # Date: 2026-11-17
 # License: LGPL 2.1
 #
-# discover.sh: Poppy discovery (§3) for any Company domain.
+# discover.sh: Poppy discovery (section 3) for any Company domain.
 #   1. GET https://{domain}/.well-known/poppy.json, following HTTPS-only redirects. The final
 #      URL's path must be exactly /.well-known/poppy.json with no query, and organization.domain
 #      must be the host that served it.
-#   2. Choose the newest compatible version among protocol_version and supported_versions (§3.4).
+#   2. Choose the newest compatible version among protocol_version and supported_versions (section 3.4).
 #   3. GET https://{organization.domain}/.well-known/oauth-protected-resource (RFC 9728) to find
 #      the issuer. 404, or no authorization_servers, means a Company without sign-in.
 #   4. GET the issuer's RFC 8414 metadata; issuer must match character for character and
 #      protected_resources must list https://{organization.domain}.
-#   5. Fetch the OpenAPI descriptions to learn which URLs are Session header destinations (§5.2),
+#   5. Fetch the OpenAPI descriptions to learn which URLs are Session header destinations (section 5.2),
 #      and, with an issuer, each API's own protected resource metadata: an API whose resource
-#      isn't https://{organization.domain} accepts only tokens issued for it (§4.5).
+#      isn't https://{organization.domain} accepts only tokens issued for it (section 4.5).
 # Writes a summary to .cache/<domain>/discovery.json, which the other scripts read.
 ##########################################################################################
 
@@ -114,7 +114,7 @@ fetch "${first_url}" "${cache_dir}/poppy.json" 1
 [[ ${status} == 200 ]] || die "GET poppy.json returned HTTP ${status} (${final_url})"
 url_allowed "${final_url}" || die "poppy.json redirected to a disallowed URL: ${final_url}"
 [[ $(url_part "${final_url}" path) == /.well-known/poppy.json && -z $(url_part "${final_url}" query) ]] ||
-    die "poppy.json redirected to ${final_url}; the last URL must be exactly /.well-known/poppy.json with no query (§3)"
+    die "poppy.json redirected to ${final_url}; the last URL must be exactly /.well-known/poppy.json with no query (section 3)"
 jq -e 'type == "object"' "${cache_dir}/poppy.json" >/dev/null || die "poppy.json is not a JSON object"
 
 served_host=$(url_part "${final_url}" authority)
@@ -125,11 +125,11 @@ readonly scheme
 org_domain=$(jq -r '.organization.domain // empty' "${cache_dir}/poppy.json")
 [[ -n ${org_domain} ]] || die "poppy.json has no organization.domain"
 [[ $(tr '[:upper:]' '[:lower:]' <<<"${org_domain}") == "${served_host}" ]] ||
-    die "organization.domain '${org_domain}' isn't the host that served poppy.json '${served_host}' (§3)"
+    die "organization.domain '${org_domain}' isn't the host that served poppy.json '${served_host}' (section 3)"
 org_domain=${served_host}
 readonly org_domain
 
-# --- 2. version (§3.4) ---
+# --- 2. version (section 3.4) ---
 readonly impl_major=${POPPY_IMPLEMENTED_VERSION%%.*}
 readonly impl_minor=${POPPY_IMPLEMENTED_VERSION#*.}
 
@@ -144,7 +144,7 @@ while read -r v; do
     compatible "${v}" && chosen=${v}
 done < <(jq -r '[.protocol_version] + (.supported_versions // {} | keys) | .[]' "${cache_dir}/poppy.json" |
     sort -t. -k1,1n -k2,2n)
-[[ -n ${chosen} ]] || die "no version in poppy.json is compatible with ${POPPY_IMPLEMENTED_VERSION} (§3.4)"
+[[ -n ${chosen} ]] || die "no version in poppy.json is compatible with ${POPPY_IMPLEMENTED_VERSION} (section 3.4)"
 readonly chosen
 
 if [[ ${chosen} != $(jq -r .protocol_version "${cache_dir}/poppy.json") ]]; then
@@ -162,14 +162,14 @@ fi
 readonly poppy="${cache_dir}/poppy.json"
 
 jq -e 'has("agent") or has("apis") or has("web")' "${poppy}" >/dev/null ||
-    die "poppy.json lists none of agent, apis or web (§3.1)"
+    die "poppy.json lists none of agent, apis or web (section 3.1)"
 
-# every URL the document gives us must be HTTPS (§3)
+# every URL the document gives us must be HTTPS (section 3)
 while read -r u; do
     url_allowed "${u}" || die "poppy.json has a disallowed URL: ${u}"
 done < <(jq -r '[.. | objects | to_entries[] | select(.key | test("(endpoint|url|uri)$")) | .value | strings] | .[]' "${poppy}")
 
-# --- 3. protected resource metadata (RFC 9728, §3.2) ---
+# --- 3. protected resource metadata (RFC 9728, section 3.2) ---
 readonly resource="${scheme}://${org_domain}"
 fetch "${resource}/.well-known/oauth-protected-resource" "${cache_dir}/protected-resource.json" 0
 
@@ -184,34 +184,34 @@ case ${status} in
 200)
     prm_resource=$(jq -r '.resource // empty' "${cache_dir}/protected-resource.json")
     [[ ${prm_resource} == "${resource}" ]] ||
-        die "protected resource metadata 'resource' is '${prm_resource}', expected '${resource}' (§3.2)"
+        die "protected resource metadata 'resource' is '${prm_resource}', expected '${resource}' (section 3.2)"
     n_as=$(jq '.authorization_servers // [] | length' "${cache_dir}/protected-resource.json")
     if [[ ${n_as} -eq 1 ]]; then
         issuer=$(jq -r '.authorization_servers[0]' "${cache_dir}/protected-resource.json")
         [[ -z ${auth_issuer} || ${auth_issuer} == "${issuer}" ]] ||
-            die "auth.issuer '${auth_issuer}' isn't the one authorization server '${issuer}' (§3.1)"
+            die "auth.issuer '${auth_issuer}' isn't the one authorization server '${issuer}' (section 3.1)"
     elif [[ ${n_as} -gt 1 ]]; then
-        [[ -n ${auth_issuer} ]] || die "several authorization_servers and no auth.issuer to choose one (§3.1)"
+        [[ -n ${auth_issuer} ]] || die "several authorization_servers and no auth.issuer to choose one (section 3.1)"
         jq -e --arg i "${auth_issuer}" '.authorization_servers | index($i)' "${cache_dir}/protected-resource.json" >/dev/null ||
             die "auth.issuer '${auth_issuer}' isn't in authorization_servers"
         issuer=${auth_issuer}
     fi
     ;;
 *)
-    # §3.2: no domain fallback after an error
+    # section 3.2: no domain fallback after an error
     die "GET ${resource}/.well-known/oauth-protected-resource returned HTTP ${status}; not falling back to no issuer"
     ;;
 esac
 
 if [[ -z ${issuer} && -n ${auth_issuer} ]]; then
-    die "poppy.json names auth.issuer but the domain lists no authorization server (§3.2)"
+    die "poppy.json names auth.issuer but the domain lists no authorization server (section 3.2)"
 fi
 readonly issuer
 
-# --- 4. authorization server metadata (RFC 8414, §3.2) ---
+# --- 4. authorization server metadata (RFC 8414, section 3.2) ---
 if [[ -n ${issuer} ]]; then
     url_allowed "${issuer}" || die "issuer isn't an HTTPS URL: ${issuer}"
-    # RFC 8414 §3.1: insert the well-known segment between host and path, dropping a trailing /
+    # RFC 8414 section 3.1: insert the well-known segment between host and path, dropping a trailing /
     issuer_path=$(url_part "${issuer}" path)
     issuer_path=${issuer_path%/}
     as_url="$(url_part "${issuer}" scheme)://$(url_part "${issuer}" authority)/.well-known/oauth-authorization-server${issuer_path}"
@@ -220,17 +220,17 @@ if [[ -n ${issuer} ]]; then
 
     as=${cache_dir}/authorization-server.json
     [[ $(jq -r '.issuer // empty' "${as}") == "${issuer}" ]] ||
-        die "authorization server metadata issuer '$(jq -r '.issuer' "${as}")' doesn't match '${issuer}' exactly (§3.2)"
+        die "authorization server metadata issuer '$(jq -r '.issuer' "${as}")' doesn't match '${issuer}' exactly (section 3.2)"
     jq -e --arg r "${resource}" '.protected_resources // [] | map(ascii_downcase | rtrimstr("/")) | index($r | ascii_downcase)' "${as}" >/dev/null ||
-        die "issuer's protected_resources doesn't list ${resource}; another domain could be claiming this issuer (§3.2)"
+        die "issuer's protected_resources doesn't list ${resource}; another domain could be claiming this issuer (section 3.2)"
     for field in token_endpoint revocation_endpoint; do
-        jq -e --arg f "${field}" '.[$f] | strings' "${as}" >/dev/null || die "authorization server metadata has no ${field} (§3.2)"
+        jq -e --arg f "${field}" '.[$f] | strings' "${as}" >/dev/null || die "authorization server metadata has no ${field} (section 3.2)"
     done
     jq -e '.grant_types_supported // [] | index("refresh_token")' "${as}" >/dev/null ||
-        die "grant_types_supported doesn't include refresh_token (§3.2)"
+        die "grant_types_supported doesn't include refresh_token (section 3.2)"
 fi
 
-# --- 5. Session header destinations (§5.2) ---
+# --- 5. Session header destinations (section 5.2) ---
 # OpenAPI request URLs come from each description's servers; relative ones resolve against it
 declare -a destinations=()
 while read -r api_url; do
@@ -258,8 +258,8 @@ done < <(jq -r '
     (.web.browser_session_endpoint // empty | . + "/authorize"),
     (.extensions // {} | .[] | .[] | .endpoint // empty)' "${poppy}")
 
-# §4.5: per-service tokens. The metadata URL inserts the well-known segment between the host and
-# the path (RFC 9728 §3.1), and counts only if its resource is the URL it was derived from.
+# section 4.5: per-service tokens. The metadata URL inserts the well-known segment between the host and
+# the path (RFC 9728 section 3.1), and counts only if its resource is the URL it was derived from.
 declare resources='{}'
 if [[ -n ${issuer} ]]; then
     for server in "${destinations[@]}"; do
@@ -314,7 +314,6 @@ jq -n \
             else {
                 available: true,
                 direct: (($g | index("authorization_code")) != null and ($a.authorization_endpoint != null)),
-                device: (($g | index("urn:ietf:params:oauth:grant-type:device_code")) != null and ($a.device_authorization_endpoint != null)),
                 par: ($a.pushed_authorization_request_endpoint != null),
                 par_required: ($a.require_pushed_authorization_requests // false),
                 dpop_algs: ($a.dpop_signing_alg_values_supported // [])
@@ -337,7 +336,7 @@ if [[ ${opt_quiet} -eq 0 ]]; then
         "Company:      \(.organization.name) (\(.domain))",
         "Identifier:   \(.company_id)",
         "Version:      \(.version) (sending Poppy-Version \(.poppy_version))",
-        "Sign-in:      \(if .sign_in.available then ([if .sign_in.direct then "direct" else empty end, if .sign_in.device then "device" else empty end, if .sign_in.par then "par" else empty end] | join(", ")) else "none (signed-out Sessions only)" end)",
+        "Sign-in:      \(if .sign_in.available then ([if .sign_in.direct then "direct" else empty end, if .sign_in.par then "par" else empty end] | join(", ")) else "none (signed-out Sessions only)" end)",
         "Agent:        \(.poppy.agent.protocols // [] | map("\(.type) \(.endpoint)") | join(", ") | if . == "" then "-" else . end)",
         "APIs:         \(.poppy.apis // [] | map("\(.type) \(.url)") | join(", ") | if . == "" then "-" else . end)",
         "Tasks:        \(.poppy.tasks.endpoint // "-")",

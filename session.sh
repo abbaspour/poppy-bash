@@ -5,11 +5,11 @@
 # Date: 2026-11-17
 # License: LGPL 2.1
 #
-# session.sh: manages Poppy Sessions (§5). There is no call to start one: a new random sid
-# in the Session header starts it on the Company's side (§5.3). This script picks the sid
+# session.sh: manages Poppy Sessions (section 5). There is no call to start one: a new random sid
+# in the Session header starts it on the Company's side (section 5.3). This script picks the sid
 # and pins what must stay the same for the whole Session: the User ID, the Agent ID, the
-# Poppy-Version and the Poppy-Extensions (§3.4, §5.2). Ending a Session means no longer
-# using its sid (§5.5); refresh tokens are unaffected.
+# Poppy-Version and the Poppy-Extensions (section 3.4, section 5.2). Ending a Session means no longer
+# using its sid (section 5.5); refresh tokens are unaffected.
 ##########################################################################################
 
 set -ueo pipefail
@@ -29,7 +29,7 @@ USAGE: $0 [-e env] [-d domain] [-u user] [-A agent] [-h|?] command
         -e file        # .env file location
         -d domain      # Company domain (default COMPANY_DOMAIN, or last discovered)
         -u user        # local User (default POPPY_USER=${POPPY_USER})
-        -A agent       # with new: the Session is for this agent's Agent ID (§5.1)
+        -A agent       # with new: the Session is for this agent's Agent ID (section 5.1)
         -h|?           # usage
 
 commands:

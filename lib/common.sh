@@ -24,9 +24,9 @@ export POPPY_ENV_FILE
 : "${POPPY_STATE:=${POPPY_HOME}/.state}"        # User IDs, Sessions, delegated keys, tokens
 : "${POPPY_CACHE:=${POPPY_HOME}/.cache}"        # discovery documents, per Company domain
 : "${POPPY_USER:=default}"                      # the local User this agent acts for
-: "${POPPY_IMPLEMENTED_VERSION:=1.0}"           # protocol version this agent implements (§3.4)
-: "${POPPY_DELEGATION_TTL:=3600}"               # delegation lifetime in seconds, at most 86400 (§5.2)
-: "${POPPY_DEV_ALLOW_HTTP:=0}"                  # 1 = allow http://localhost for local testing only (§3)
+: "${POPPY_IMPLEMENTED_VERSION:=1.0}"           # protocol version this agent implements (section 3.4)
+: "${POPPY_DELEGATION_TTL:=3600}"               # delegation lifetime in seconds, at most 86400 (section 5.2)
+: "${POPPY_DEV_ALLOW_HTTP:=0}"                  # 1 = allow http://localhost for local testing only (section 3)
 : "${AGENT_BASE_URL:=}"                         # public HTTPS base of web/public, eg. the tunnel host
 : "${CLIENT_ID:=${AGENT_BASE_URL:+${AGENT_BASE_URL}/cimd.json}}"
 : "${AGENT_EC_KEY:=${POPPY_HOME}/keys/agent-ec-private.pem}"     # signs delegations (and ES256 assertions)
@@ -47,7 +47,7 @@ function b64url_decode() {
     printf '%s' "${_s}" | openssl base64 -d -A
 }
 
-# 16 random bytes, base64url: 22 characters from the ID alphabet of §8.2
+# 16 random bytes, base64url: 22 characters from the ID alphabet of section 8.2
 function rand_id() { openssl rand 16 | b64url; }
 
 function die() { echo >&2 "ERROR: $*"; exit 1; }
@@ -57,7 +57,7 @@ function slug() { printf '%s' "$1" | tr -c 'A-Za-z0-9.-' '_'; }
 
 # --- URLs ---
 # url_part <url> <scheme|authority|path|query>; authority is lowercase host[:port], with
-# the default port removed, as organization.domain expects (§3.1)
+# the default port removed, as organization.domain expects (section 3.1)
 function url_part() {
     local _url=$1 _part=$2
     [[ ${_url} =~ ^([A-Za-z][A-Za-z0-9+.-]*)://([^/?#]*)([^?#]*)(\?[^#]*)?(#.*)?$ ]] || return 1
@@ -76,7 +76,7 @@ function url_part() {
     esac
 }
 
-# the URL without query or fragment, for htm/htu (§5.2, RFC 9449 §4.2)
+# the URL without query or fragment, for htm/htu (section 5.2, RFC 9449 section 4.2)
 function url_htu() {
     echo "$(url_part "$1" scheme)://$(url_part "$1" authority)$(url_part "$1" path)"
 }
@@ -88,7 +88,7 @@ function url_allowed() {
     _authority=$(url_part "$1" authority)
     _host=${_authority%:*}
     if [[ ${_scheme} == https ]]; then
-        # §3: no loopback, private or link-local addresses unless configured on purpose
+        # section 3: no loopback, private or link-local addresses unless configured on purpose
         if [[ ${POPPY_DEV_ALLOW_HTTP} != 1 ]] &&
             [[ ${_host} == localhost || ${_host} =~ ^(127|10|0)\. || ${_host} =~ ^192\.168\. ||
                 ${_host} =~ ^172\.(1[6-9]|2[0-9]|3[01])\. || ${_host} =~ ^169\.254\. || ${_host} == \[* ]]; then
@@ -127,14 +127,14 @@ function load_discovery() {
 }
 
 # per-User, per-Company state directory. User IDs are scoped by the Company identifier, not the
-# domain (§5.1), so domains that share an issuer share this directory.
+# domain (section 5.1), so domains that share an issuer share this directory.
 function company_dir() {
     echo "${POPPY_STATE}/users/$(slug "${POPPY_USER}")/$(slug "$1")"
 }
 
 function iso_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
-# --- OAuth (§4) ---
+# --- OAuth (section 4) ---
 # oidc-bash does the plain OAuth requests. It never reads its own .env here: everything it needs
 # is passed as flags, so its settings can't leak into a Poppy sign-in.
 export OIDC_BASH_NO_DOTENV=1
@@ -146,7 +146,7 @@ function oidc_bash() {
     echo "${_dir}"
 }
 
-# the key that signs client assertions (§4.1): the EC key for ES256, the RSA key otherwise
+# the key that signs client assertions (section 4.1): the EC key for ES256, the RSA key otherwise
 function assertion_key() {
     case ${CLIENT_ASSERTION_ALG} in
     ES256) echo "${AGENT_EC_KEY}" ;;
@@ -159,7 +159,7 @@ function assertion_key() {
 function issuer_host() { url_part "$1" authority; }
 
 # Resources to name in the request that starts sign-in, comma separated: URLs, or "default" for
-# https://{organization.domain}. Poppy says not to (§4.5): a sign-in without resource covers every
+# https://{organization.domain}. Poppy says not to (section 4.5): a sign-in without resource covers every
 # service. Set it only for an issuer that needs a resource to pick the token's audience.
 : "${POPPY_SIGN_IN_RESOURCES:=}"
 

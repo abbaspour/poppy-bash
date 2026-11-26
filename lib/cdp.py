@@ -24,7 +24,7 @@ import struct
 import sys
 from urllib.parse import urlparse
 
-GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"  # RFC 6455 §1.3
+GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"  # RFC 6455 section 1.3
 MAX_MESSAGE = 16 * 1024 * 1024
 
 
@@ -83,7 +83,7 @@ def send_frame(sock, opcode, payload):
         header += bytes([0x80 | 126]) + struct.pack(">H", n)
     else:
         header += bytes([0x80 | 127]) + struct.pack(">Q", n)
-    mask = os.urandom(4)  # client frames are masked (RFC 6455 §5.3)
+    mask = os.urandom(4)  # client frames are masked (RFC 6455 section 5.3)
     sock.sendall(header + mask + bytes(b ^ mask[i % 4] for i, b in enumerate(payload)))
 
 

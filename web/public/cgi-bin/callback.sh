@@ -5,7 +5,7 @@
 # Date: 2026-11-18
 # License: LGPL 2.1
 #
-# callback.sh: the redirect_uri of Direct Sign-In (§4.2), run by web/server.sh as CGI for
+# callback.sh: the redirect_uri of Direct Sign-In (section 4.2), run by web/server.sh as CGI for
 # /callback. It saves the authorization response (code, state, iss, or error) under
 # .state/callbacks/<state>.json, where sign-in.sh is waiting for it, and tells the User to go
 # back to the terminal. It doesn't exchange the code or judge the response: sign-in.sh checks

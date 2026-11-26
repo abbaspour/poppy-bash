@@ -5,14 +5,14 @@
 # Date: 2026-11-17
 # License: LGPL 2.1
 #
-# api.sh: uses the APIs a Company lists in poppy.json (§7). Lists them, lists an OpenAPI
+# api.sh: uses the APIs a Company lists in poppy.json (section 7). Lists them, lists an OpenAPI
 # API's operations with the scopes each needs, and calls an operation through poppy-curl.sh,
 # so every call carries the Session header. Paths resolve against the description's first
 # server URL.
 #
 # When the User is signed in at the Company, calls carry an access token from token.sh: the
-# default token, or one for the API's own resource when its metadata asks for that (§4.5). An
-# invalid_token is refreshed and retried once (§7). -o calls signed out.
+# default token, or one for the API's own resource when its metadata asks for that (section 4.5). An
+# invalid_token is refreshed and retried once (section 7). -o calls signed out.
 ##########################################################################################
 
 set -ueo pipefail
@@ -125,7 +125,7 @@ call)
     [[ ${server} == /* ]] && server="${origin}${server}"
     url="${server%/}/${path#/}"
 
-    # signed in when the User has tokens at this Company (§5.4), unless -o or -t
+    # signed in when the User has tokens at this Company (section 5.4), unless -o or -t
     declare -i auto_token=0
     if [[ -z ${token} && ${opt_signed_out} -eq 0 ]]; then
         company_id=$(jq -r .company_id "${discovery}")
@@ -137,7 +137,7 @@ call)
             token=$("${DIR}/token.sh" "${token_args[@]}") || {
                 rc=$?
                 [[ ${rc} -eq 20 ]] || exit "${rc}"
-                token=''    # signed out by the Company: continue signed out (§5.5)
+                token=''    # signed out by the Company: continue signed out (section 5.5)
             }
         fi
     fi
@@ -153,7 +153,7 @@ call)
 
     rc=0
     call || rc=$?
-    # §7 invalid_token: refresh, and send the request again once
+    # section 7 invalid_token: refresh, and send the request again once
     if [[ ${rc} -eq 20 && ${auto_token} -eq 1 ]]; then
         echo >&2 "refreshing the access token and retrying once"
         token_args+=(-f)

@@ -6,11 +6,11 @@
 # License: LGPL 2.1
 #
 # tasks.sh: what a Company chose not to offer through Poppy, the skills it publishes for Personal
-# Agents, and where to send feedback (§9). GET {tasks.endpoint} with the Session header and no
+# Agents, and where to send feedback (section 9). GET {tasks.endpoint} with the Session header and no
 # access token, once per Session: the response may differ by Session, so it's kept with the
 # Session and never used in another one.
 #
-# With -S, fetches a skill (§9.4): its url is resolved against tasks.endpoint (RFC 3986 §5), fetched
+# With -S, fetches a skill (section 9.4): its url is resolved against tasks.endpoint (RFC 3986 section 5), fetched
 # without a Session header or credentials, and used only if its sha256 digest matches. A skill is
 # Company content: it describes a workflow, and grants no access or approval.
 ##########################################################################################
@@ -81,7 +81,7 @@ readonly discovery
 endpoint=$(jq -r '.poppy.tasks.endpoint // empty' "${discovery}")
 readonly endpoint
 if [[ -z ${endpoint} ]]; then
-    echo >&2 "${domain} lists no tasks endpoint: no excluded tasks, skills or feedback (§9)"
+    echo >&2 "${domain} lists no tasks endpoint: no excluded tasks, skills or feedback (section 9)"
     exit 0
 fi
 
@@ -94,7 +94,7 @@ fi
 readonly sid
 readonly tasks_file="${dir}/sessions/${sid}.tasks.json"
 
-# --- the tasks response, once per Session (§9) ---
+# --- the tasks response, once per Session (section 9) ---
 if [[ ${opt_refetch} -eq 1 || ! -s ${tasks_file} ]]; then
     # no access token: the response describes the Company, not the User's account
     if response=$("${DIR}/poppy-curl.sh" -d "${domain}" -u "${POPPY_USER}" -s "${sid}" "${endpoint}"); then
@@ -102,7 +102,7 @@ if [[ ${opt_refetch} -eq 1 || ! -s ${tasks_file} ]]; then
         umask 077
         echo "${response}" >"${tasks_file}"
     else
-        # §9: without a response, carry on as if the Company excluded nothing and took no feedback
+        # section 9: without a response, carry on as if the Company excluded nothing and took no feedback
         echo >&2 "no tasks response; carrying on as if ${domain} excluded no tasks and published no skills"
         exit 0
     fi
@@ -113,7 +113,7 @@ if [[ ${opt_json} -eq 1 ]]; then
     exit 0
 fi
 
-# skills are used only from an index with a $schema this agent knows (§9.4)
+# skills are used only from an index with a $schema this agent knows (section 9.4)
 skills_known=$(jq -r --arg s "${SKILL_SCHEMA}" '.skill_index["$schema"] == $s' "${tasks_file}")
 readonly skills_known
 
@@ -134,8 +134,8 @@ if [[ -z ${skill} ]]; then
     exit 0
 fi
 
-# --- a skill (§9.4) ---
-[[ ${skills_known} == true ]] || die "the skill index has no \$schema this agent knows; ignoring it (§9.4)"
+# --- a skill (section 9.4) ---
+[[ ${skills_known} == true ]] || die "the skill index has no \$schema this agent knows; ignoring it (section 9.4)"
 entry=$(jq -c --arg n "${skill}" '.skill_index.skills // [] | map(select(.name == $n)) | first // empty' "${tasks_file}")
 [[ -n ${entry} ]] || die "no skill named ${skill}; run $0 to list them"
 [[ $(jq -r .type <<<"${entry}") == skill-md ]] || die "skill type $(jq -r .type <<<"${entry}") isn't supported here; only skill-md"
@@ -143,14 +143,14 @@ entry=$(jq -c --arg n "${skill}" '.skill_index.skills // [] | map(select(.name =
 digest=$(jq -r .digest <<<"${entry}")
 [[ ${digest} =~ ^sha256:[0-9a-f]{64}$ ]] || die "the skill's digest isn't sha256:<64 lowercase hex>"
 
-# RFC 3986 §5: relative and origin-relative references resolve against tasks.endpoint
+# RFC 3986 section 5: relative and origin-relative references resolve against tasks.endpoint
 skill_url=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.urljoin(sys.argv[1], sys.argv[2]))' "${endpoint}" "$(jq -r .url <<<"${entry}")")
 readonly skill_url
 url_allowed "${skill_url}" || die "refusing the skill URL (must be HTTPS to a public host): ${skill_url}"
 
 cache="${POPPY_CACHE}/$(slug "${domain}")/skills/$(slug "${skill}")"
 mkdir -p "${cache}"
-# no Session header and no credentials: an artifact host isn't an API (§9.4)
+# no Session header and no credentials: an artifact host isn't an API (section 9.4)
 curl -sSf --proto "$(curl_protos)" -L --proto-redir "$(curl_protos)" --max-redirs 3 --max-filesize "${MAX_SKILL_BYTES}" \
     -o "${cache}/SKILL.md.tmp" --url "${skill_url}" || die "couldn't fetch ${skill_url}"
 actual="sha256:$(openssl dgst -sha256 -r "${cache}/SKILL.md.tmp" | cut -d' ' -f1)"
@@ -161,5 +161,5 @@ fi
 mv "${cache}/SKILL.md.tmp" "${cache}/SKILL.md"
 
 echo >&2 "verified ${skill} (${digest}) from ${skill_url}; saved to ${cache}/SKILL.md"
-echo >&2 "a skill is the Company's content: it grants no access and no approval (§9.4)"
+echo >&2 "a skill is the Company's content: it grants no access and no approval (section 9.4)"
 cat "${cache}/SKILL.md"
